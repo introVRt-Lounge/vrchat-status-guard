@@ -1,0 +1,11 @@
+title = "gitleaks config for vrchat-privacy"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Docs and sanitized fixtures may mention placeholder auth shapes"
+paths = [
+  '''^docs/.*''',
+  '''^tests/.*/.*Fixtures?.*''',
+]
