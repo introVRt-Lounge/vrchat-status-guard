@@ -14,8 +14,9 @@ permissions:
   contents: read
   pull-requests: read
 
-# Windows tray app - run gates on windows-latest. Do not default to Ubuntu
-# just because Core unit tests could run there.
+# App build/test/installer: windows-latest.
+# Gitleaks + Semgrep container images are Linux-only; those two jobs stay on
+# ubuntu-latest. That is scanner infrastructure, not the product runtime.
 
 jobs:
   test:
@@ -25,35 +26,64 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "8.0.x"
-      - name: Restore
-        run: dotnet restore src/VrchatPrivacy.sln
-      - name: Build
-        run: dotnet build src/VrchatPrivacy.sln --no-restore -c Release
       - name: Test
-        run: dotnet test tests/VrchatPrivacy.Core.Tests/VrchatPrivacy.Core.Tests.csproj --no-build -c Release --verbosity normal
+        run: >
+          dotnet test tests/VrchatPrivacy.Core.Tests/VrchatPrivacy.Core.Tests.csproj
+          -c Release --verbosity normal
+
+  installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "8.0.x"
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          winget install --id JRSoftware.InnoSetup --exact --silent `
+            --accept-package-agreements --accept-source-agreements
+          $paths = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6",
+            "${env:ProgramFiles}\Inno Setup 7",
+            "${env:ProgramFiles(x86)}\Inno Setup 7"
+          )
+          foreach ($p in $paths) {
+            if (Test-Path (Join-Path $p "ISCC.exe")) {
+              "$p" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+              Write-Host "ISCC path: $p"
+              break
+            }
+          }
+      - name: Build Setup.exe
+        shell: pwsh
+        run: .\scripts\build-installer.ps1 -Version "0.1.0"
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VrchatPrivacyGuard-Setup
+          path: artifacts/installer/*.exe
+          if-no-files-found: error
 
   secret-scan:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      # Org repos need a paid GITLEAKS_LICENSE for gitleaks-action; use Docker CLI.
       - name: Gitleaks (Docker)
-        shell: bash
         run: |
-          docker run --rm -v "/$PWD:/repo" -w /repo zricethezav/gitleaks:v8.30.1 \
+          docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.30.1 \
             detect --source=/repo --config=/repo/.gitleaks.toml \
             --redact --verbose --log-opts=HEAD
 
   owasp-sast:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - name: Semgrep OWASP + project rules
-        shell: bash
         run: |
-          docker run --rm -v "/$PWD:/src" -w /src semgrep/semgrep:1.122.0 \
+          docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.122.0 \
             semgrep scan \
               --config p/owasp-top-ten \
               --config p/csharp \
@@ -75,7 +105,7 @@ jobs:
         run: dotnet list src/VrchatPrivacy.sln package --vulnerable --include-transitive
 
   ci:
-    needs: [test, secret-scan, owasp-sast, security-audit]
+    needs: [test, installer, secret-scan, owasp-sast, security-audit]
     if: always()
     runs-on: windows-latest
     steps:
@@ -84,10 +114,12 @@ jobs:
         run: |
           set -euo pipefail
           echo "test=${{ needs.test.result }}"
+          echo "installer=${{ needs.installer.result }}"
           echo "secret-scan=${{ needs.secret-scan.result }}"
           echo "owasp-sast=${{ needs.owasp-sast.result }}"
           echo "security-audit=${{ needs.security-audit.result }}"
           test "${{ needs.test.result }}" = success
+          test "${{ needs.installer.result }}" = success
           test "${{ needs.secret-scan.result }}" = success
           test "${{ needs.owasp-sast.result }}" = success
           test "${{ needs.security-audit.result }}" = success

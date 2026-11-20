@@ -12,7 +12,9 @@
 
 Workflow: `.github/workflows/ci.yml`  
 Required aggregate job name: **`ci`** (test + secret-scan + owasp-sast + security-audit).  
-Runners: **`windows-latest`** (this is a Windows tray app; do not default CI to Ubuntu).
+Runners:
+- **`windows-latest`**: test, security-audit, installer (Setup.exe artifact)
+- **`ubuntu-latest`**: gitleaks + Semgrep only (Linux container images; not the product runtime)
 
 Free private: branch protection / required checks often unavailable. Dependabot + `automerge` label use embedded `merge-on-green` on green `ci`.
 

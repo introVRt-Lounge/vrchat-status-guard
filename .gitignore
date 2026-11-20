@@ -38,3 +38,6 @@ Desktop.ini
 *.log
 output_log_*.txt
 /local/
+
+## Publish / installer output
+/artifacts/

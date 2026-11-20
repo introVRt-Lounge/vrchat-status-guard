@@ -25,6 +25,19 @@ Best-effort automation. A short delay after world entry is acceptable. Never aut
 | `VrchatPrivacy.App` | WinForms tray + settings (Windows only) |
 | `VrchatPrivacy.Core.Tests` | Unit tests (Linux CI-friendly) |
 
+## Install (end users)
+
+Run the wizard: `VrchatPrivacyGuard-Setup-*.exe` (CI artifact / Releases).
+
+It installs a **self-contained** build - no separate .NET runtime install. Optional Start Menu, desktop icon, and Start-with-Windows.
+
+Local build:
+
+```powershell
+# Needs Inno Setup 6+ (winget install JRSoftware.InnoSetup)
+.\scripts\build-installer.ps1
+```
+
 ## Quick start (dev)
 
 ```powershell
@@ -34,7 +47,7 @@ dotnet test tests/VrchatPrivacy.Core.Tests/VrchatPrivacy.Core.Tests.csproj
 dotnet run --project src/VrchatPrivacy.App/VrchatPrivacy.App.csproj
 ```
 
-Requires .NET 8 SDK. VRChat client logs: `%UserProfile%\AppData\LocalLow\VRChat\VRChat\output_log_*.txt`.
+Requires .NET 8 SDK for development. VRChat client logs: `%UserProfile%\AppData\LocalLow\VRChat\VRChat\output_log_*.txt`.
 
 ## Hard constraints (do not "improve" away)
 
