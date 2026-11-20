@@ -22,7 +22,7 @@ jobs:
   test:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "8.0.x"
@@ -34,7 +34,7 @@ jobs:
   installer:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "8.0.x"
@@ -68,7 +68,7 @@ jobs:
   secret-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Gitleaks (Docker)
@@ -80,7 +80,7 @@ jobs:
   owasp-sast:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Semgrep OWASP + project rules
         run: |
           docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.122.0 \
@@ -95,7 +95,7 @@ jobs:
   security-audit:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "8.0.x"
