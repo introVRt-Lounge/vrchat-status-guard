@@ -8,15 +8,20 @@
 - [x] Unit tests for parse + decision invariants (no blue restore)
 - [x] Research notes + milestone 1 plan
 
+## Done (runtime)
+
+- [x] [#1](https://github.com/introVRt-Lounge/vrchat-privacy/issues/1) Log directory watcher
+- [x] [#2](https://github.com/introVRt-Lounge/vrchat-privacy/issues/2) DPAPI + VRChat.API session (login/2FA)
+- [x] [#3](https://github.com/introVRt-Lounge/vrchat-privacy/issues/3) Apply orange/red on protected world entry (in-game confirm = operator manual check)
+- [x] [#6](https://github.com/introVRt-Lounge/vrchat-privacy/issues/6) Windows wizard installer
+- [x] Default protected world: `wrld_7a0c95e2-476c-4655-9b4e-7380933c4fd3` (Cuddle & Sleep)
+- [x] Tray: login, pause, protected worlds, status
+
 ## Next
 
-- [ ] [#1](https://github.com/introVRt-Lounge/vrchat-privacy/issues/1) Log directory watcher (follow new `output_log_*.txt`)
-- [ ] [#2](https://github.com/introVRt-Lounge/vrchat-privacy/issues/2) DPAPI credential store + VRChat.API session (login/2FA)
-- [ ] [#3](https://github.com/introVRt-Lounge/vrchat-privacy/issues/3) Milestone-1 live demo: apply `ask me`/`busy`, confirm in-game
-- [ ] [#6](https://github.com/introVRt-Lounge/vrchat-privacy/issues/6) Windows wizard installer (self-contained + Inno) - in progress on `feat/6-wizard-installer`
-- [ ] Tray settings UI (world list, orange/red, pause, startup-with-Windows)
-- [ ] Bounded backoff on auth/network failure
-- [ ] Operator supplies final protected world IDs + orange vs red preference
+- [ ] Operator live confirm: enter sleep world while blue → becomes orange in-game
+- [ ] Bounded backoff UI polish on repeated auth/network failure
+- [ ] Optional: store TOTP secret for seamless re-login (today: interactive OTP)
 
 ## Out of scope (v1)
 

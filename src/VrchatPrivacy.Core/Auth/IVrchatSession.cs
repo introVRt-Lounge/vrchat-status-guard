@@ -12,6 +12,8 @@ public sealed record SessionSnapshot(string UserId, string DisplayName, string C
 /// </summary>
 public interface IVrchatSession
 {
+    bool IsAuthenticated { get; }
+
     Task<LoginChallenge?> BeginLoginAsync(string username, string password, CancellationToken cancellationToken = default);
 
     Task CompleteTotpAsync(string code, CancellationToken cancellationToken = default);

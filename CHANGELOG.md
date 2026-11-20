@@ -15,3 +15,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WinForms tray scaffold.
 - Tier I CI (tests, gitleaks, Semgrep, nuget audit).
 - Self-contained Inno Setup wizard (`scripts/build-installer.ps1` → `VrchatPrivacyGuard-Setup-*.exe`).
+- Log watcher, DPAPI session, protection orchestrator, tray login/pause/settings.
+- Default protected world `wrld_7a0c95e2-476c-4655-9b4e-7380933c4fd3` (Cuddle & Sleep) → orange / ask me.

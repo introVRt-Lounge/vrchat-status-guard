@@ -10,6 +10,12 @@ Official help: [Where do I find my Output Logs](https://help.vrchat.com/hc/en-us
 
 Files older than ~24h are deleted when VRChat launches. Each VRChat start creates a new file - the watcher must follow the newest file.
 
+## Operator default protected world
+
+- URL: https://vrchat.com/home/world/wrld_7a0c95e2-476c-4655-9b4e-7380933c4fd3/info
+- World ID: `wrld_7a0c95e2-476c-4655-9b4e-7380933c4fd3` (Cuddle & Sleep)
+- Default protection: orange / `ask me` (never auto blue)
+
 ## Live join lines (this machine)
 
 From `output_log_2026-11-20_00-42-24.txt` (player/group ids redacted in fixtures):

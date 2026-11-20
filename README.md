@@ -8,7 +8,7 @@ Best-effort automation. A short delay after world entry is acceptable. Never aut
 
 ## Status
 
-**Repo bootstrap + Core milestone foundation.** Private under [`introVRt-Lounge`](https://github.com/introVRt-Lounge). Full tray UI, live login, and in-game confirmation are tracked in GitHub Issues.
+**Runtime tray app** under [`introVRt-Lounge`](https://github.com/introVRt-Lounge). Default protected world: [Cuddle & Sleep](https://vrchat.com/home/world/wrld_7a0c95e2-476c-4655-9b4e-7380933c4fd3/info) (`wrld_7a0c95e2-476c-4655-9b4e-7380933c4fd3`) → **Ask Me (orange)** (configurable to red). Login via tray; cookies in DPAPI.
 
 ## Docs
 
