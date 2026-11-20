@@ -14,3 +14,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Protection rules/decision engine (default orange / `ask me`; never auto blue).
 - WinForms tray scaffold.
 - Tier I CI (tests, gitleaks, Semgrep, nuget audit).
+- Self-contained Inno Setup wizard (`scripts/build-installer.ps1` → `VrchatPrivacyGuard-Setup-*.exe`).
