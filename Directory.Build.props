@@ -1,0 +1,7 @@
+<Project>
+  <!-- Allow `dotnet restore` of the WinForms app on non-Windows CI agents
+       without building it there. Linux CI still builds Core + Tests only. -->
+  <PropertyGroup>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+</Project>

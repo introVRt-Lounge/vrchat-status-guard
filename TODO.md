@@ -10,9 +10,9 @@
 
 ## Next
 
-- [ ] Issue + implement log directory watcher (follow new `output_log_*.txt`)
-- [ ] Issue + implement DPAPI credential store + VRChat.API session (login/2FA)
-- [ ] Issue + milestone-1 live demo: apply `ask me`/`busy`, confirm in-game
+- [ ] [#1](https://github.com/introVRt-Lounge/vrchat-privacy/issues/1) Log directory watcher (follow new `output_log_*.txt`)
+- [ ] [#2](https://github.com/introVRt-Lounge/vrchat-privacy/issues/2) DPAPI credential store + VRChat.API session (login/2FA)
+- [ ] [#3](https://github.com/introVRt-Lounge/vrchat-privacy/issues/3) Milestone-1 live demo: apply `ask me`/`busy`, confirm in-game
 - [ ] Tray settings UI (world list, orange/red, pause, startup-with-Windows)
 - [ ] Bounded backoff on auth/network failure
 - [ ] Operator supplies final protected world IDs + orange vs red preference

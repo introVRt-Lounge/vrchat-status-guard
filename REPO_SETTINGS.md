@@ -34,7 +34,7 @@ gh api -X PUT repos/introVRt-Lounge/vrchat-privacy/automated-security-fixes
 | CodeQL / Code Quality | May 403 | Document skip if REST fails |
 | Dependabot alerts | Enable via API | See above |
 
-Last probe: 2026-11-20 (repo created; alerts enable attempted at push time).
+Last probe: 2026-11-20 (repo created; Dependabot vulnerability alerts + security updates enabled via API; `automerge` label created).
 
 ## Git hygiene
 
