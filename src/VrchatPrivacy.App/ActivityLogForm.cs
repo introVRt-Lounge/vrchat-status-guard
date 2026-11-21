@@ -4,7 +4,6 @@ using DiagProcess = System.Diagnostics.Process;
 using DiagProcessStartInfo = System.Diagnostics.ProcessStartInfo;
 using VrchatPrivacy.Core.Logging;
 using VrchatPrivacy.Core.Protection;
-using VrchatPrivacy.Core.Worlds;
 
 namespace VrchatPrivacy.App;
 
@@ -21,13 +20,19 @@ public sealed class ActivityLogForm : Form
     private readonly RadioButton _debugRadio;
     private readonly CheckBox _follow;
     private readonly System.Windows.Forms.Timer _timer;
+    private readonly int _thumbW;
+    private readonly int _thumbH;
     private string _lastDebug = string.Empty;
-    private int _lastBasicCount = -1;
+    private string _lastBasicFingerprint = string.Empty;
+    private int _enrichGeneration;
+    private bool _rebuildingBasic;
 
     public ActivityLogForm(ActivityJournal journal, HubCatalog? catalog = null)
     {
         _journal = journal;
         _catalog = catalog;
+        _thumbW = DpiUtil.Scale(this, 112);
+        _thumbH = DpiUtil.Scale(this, 63);
 
         Text = "Activity - VRChat Status Guard";
         FormBorderStyle = FormBorderStyle.Sizable;
@@ -85,8 +90,8 @@ public sealed class ActivityLogForm : Form
             ForeColor = VrcTheme.TextMuted,
             Font = VrcTheme.BodyFont,
         };
-        _basicRadio.CheckedChanged += (_, _) => ApplyMode();
-        _debugRadio.CheckedChanged += (_, _) => ApplyMode();
+        _basicRadio.CheckedChanged += OnModeRadioChanged;
+        _debugRadio.CheckedChanged += OnModeRadioChanged;
         modeRow.Controls.Add(_basicRadio);
         modeRow.Controls.Add(_debugRadio);
         header.Controls.Add(modeRow);
@@ -110,9 +115,18 @@ public sealed class ActivityLogForm : Form
         _basicHost.Controls.Add(_cards);
         _basicHost.Resize += (_, _) =>
         {
+            if (_rebuildingBasic)
+            {
+                return;
+            }
+
+            var w = Math.Max(280, _basicHost.ClientSize.Width - 24);
             foreach (Control c in _cards.Controls)
             {
-                c.Width = Math.Max(280, _basicHost.ClientSize.Width - 24);
+                if (c.Width != w)
+                {
+                    c.Width = w;
+                }
             }
         };
 
@@ -144,11 +158,16 @@ public sealed class ActivityLogForm : Form
 
         var reload = new Button { Text = "Reload", AutoSize = true };
         VrcTheme.StyleGhostButton(reload);
-        reload.Click += (_, _) => RefreshAll(forceScroll: false);
+        reload.Click += (_, _) =>
+        {
+            _lastBasicFingerprint = string.Empty;
+            _lastDebug = string.Empty;
+            RefreshAll(force: true);
+        };
 
         _follow = new CheckBox
         {
-            Text = "Auto-refresh",
+            Text = "Live updates",
             Checked = true,
             AutoSize = true,
             ForeColor = VrcTheme.TextPrimary,
@@ -173,21 +192,23 @@ public sealed class ActivityLogForm : Form
         AcceptButton = close;
         CancelButton = close;
 
-        _timer = new System.Windows.Forms.Timer { Interval = 2000 };
+        // Debug may grow without events; Basic is event-driven (no destructive poll).
+        _timer = new System.Windows.Forms.Timer { Interval = 2500 };
         _timer.Tick += (_, _) =>
         {
-            if (_follow.Checked)
+            if (!_follow.Checked || !_debugRadio.Checked)
             {
-                RefreshAll(forceScroll: true);
+                return;
             }
+
+            RefreshDebug();
         };
 
         _journal.Changed += OnJournalChanged;
 
         Load += (_, _) =>
         {
-            ApplyMode();
-            RefreshAll(forceScroll: true);
+            ApplyMode(rebuild: true);
             _timer.Start();
         };
         FormClosed += (_, _) =>
@@ -197,23 +218,25 @@ public sealed class ActivityLogForm : Form
         };
     }
 
+    private void OnModeRadioChanged(object? sender, EventArgs e)
+    {
+        if (sender is RadioButton { Checked: true })
+        {
+            ApplyMode(rebuild: true);
+        }
+    }
+
     private void OnJournalChanged(object? sender, EventArgs e)
     {
-        if (IsDisposed)
+        if (IsDisposed || !_follow.Checked || !_basicRadio.Checked)
         {
             return;
         }
 
-        BeginInvoke(() =>
-        {
-            if (_follow.Checked && _basicRadio.Checked)
-            {
-                RefreshBasic(forceScroll: true);
-            }
-        });
+        BeginInvoke(() => RefreshBasic(force: false));
     }
 
-    private void ApplyMode()
+    private void ApplyMode(bool rebuild)
     {
         var basic = _basicRadio.Checked;
         _basicHost.Visible = basic;
@@ -221,24 +244,32 @@ public sealed class ActivityLogForm : Form
         _basicRadio.ForeColor = basic ? VrcTheme.TextPrimary : VrcTheme.TextMuted;
         _debugRadio.ForeColor = basic ? VrcTheme.TextMuted : VrcTheme.TextPrimary;
         _pathLabel.Text = basic ? _journal.FilePath : AppLog.FilePath;
-        RefreshAll(forceScroll: true);
+        if (rebuild)
+        {
+            RefreshAll(force: true);
+        }
     }
 
-    private void RefreshAll(bool forceScroll)
+    private void RefreshAll(bool force)
     {
         if (_basicRadio.Checked)
         {
-            RefreshBasic(forceScroll);
+            RefreshBasic(force);
         }
         else
         {
-            RefreshDebug(forceScroll);
+            if (force)
+            {
+                _lastDebug = string.Empty;
+            }
+
+            RefreshDebug();
         }
 
         _pathLabel.Text = _basicRadio.Checked ? _journal.FilePath : AppLog.FilePath;
     }
 
-    private void RefreshDebug(bool forceScroll)
+    private void RefreshDebug()
     {
         var text = AppLog.ReadRecent(500);
         if (string.Equals(text, _lastDebug, StringComparison.Ordinal))
@@ -246,7 +277,7 @@ public sealed class ActivityLogForm : Form
             return;
         }
 
-        var stick = forceScroll || _debugBody.SelectionStart >= Math.Max(0, _debugBody.TextLength - 4);
+        var stick = _debugBody.SelectionStart >= Math.Max(0, _debugBody.TextLength - 4);
         _lastDebug = text;
         _debugBody.Text = text;
         if (stick)
@@ -256,45 +287,56 @@ public sealed class ActivityLogForm : Form
         }
     }
 
-    private void RefreshBasic(bool forceScroll)
+    private void RefreshBasic(bool force)
     {
         var entries = _journal.ReadRecent(60);
-        if (entries.Count == _lastBasicCount && !forceScroll)
+        var fingerprint = Fingerprint(entries);
+        if (!force && fingerprint == _lastBasicFingerprint)
         {
-            // still rebuild when names/thumbs may resolve
+            return;
         }
 
-        var atBottom = forceScroll ||
-            (_basicHost.VerticalScroll.Value >= Math.Max(0, _basicHost.VerticalScroll.Maximum - 40));
-
+        _lastBasicFingerprint = fingerprint;
+        _rebuildingBasic = true;
         _cards.SuspendLayout();
-        _cards.Controls.Clear();
-        if (entries.Count == 0)
+        try
         {
-            _cards.Controls.Add(DpiUtil.AutoLabel(
-                "Nothing yet. Enter a protected world and Status Guard will show what it did here.",
-                VrcTheme.BodyFont,
-                VrcTheme.TextMuted,
-                maxWidth: 640));
-        }
-        else
-        {
-            // Newest first for casual reading.
-            foreach (var entry in entries.Reverse())
+            _cards.Controls.Clear();
+            if (entries.Count == 0)
             {
-                _cards.Controls.Add(BuildCard(entry));
+                _cards.Controls.Add(DpiUtil.AutoLabel(
+                    "Nothing yet. Enter a protected world and Status Guard will show what it did here.",
+                    VrcTheme.BodyFont,
+                    VrcTheme.TextMuted,
+                    maxWidth: 640));
+            }
+            else
+            {
+                foreach (var entry in entries.Reverse())
+                {
+                    _cards.Controls.Add(BuildCard(entry));
+                }
             }
         }
-
-        _cards.ResumeLayout(true);
-        _lastBasicCount = entries.Count;
-
-        if (atBottom && _basicHost.VerticalScroll.Visible)
+        finally
         {
-            _basicHost.AutoScrollPosition = new Point(0, 0); // newest-first: top is newest
+            _cards.ResumeLayout(true);
+            _rebuildingBasic = false;
         }
 
-        _ = EnrichThumbsAsync(entries);
+        var gen = Interlocked.Increment(ref _enrichGeneration);
+        _ = FillThumbsInPlaceAsync(gen);
+    }
+
+    private static string Fingerprint(IReadOnlyList<ActivityEntry> entries)
+    {
+        if (entries.Count == 0)
+        {
+            return "0";
+        }
+
+        var last = entries[^1];
+        return $"{entries.Count}|{last.At.UtcTicks}|{last.Kind}|{last.WorldId}|{last.Title}";
     }
 
     private Control BuildCard(ActivityEntry entry)
@@ -331,7 +373,7 @@ public sealed class ActivityLogForm : Form
             Margin = new Padding(0, 0, 0, 10),
             BackColor = VrcTheme.BgPanel,
             Padding = DpiUtil.Scale(this, 10, 8, 10, 8),
-            Tag = entry.WorldId,
+            Tag = entry,
         };
         card.Paint += (_, e) =>
         {
@@ -342,34 +384,32 @@ public sealed class ActivityLogForm : Form
             e.Graphics.DrawRectangle(pen, 0, 0, card.Width - 1, card.Height - 1);
         };
 
-        var thumbW = DpiUtil.Scale(this, 112);
-        var thumbH = DpiUtil.Scale(this, 63);
+        var showThumb = entry.Kind is not (FeedKind.Paused or FeedKind.Resumed);
         var pic = new PictureBox
         {
-            Size = new Size(thumbW, thumbH),
+            Name = "thumb",
+            Size = new Size(_thumbW, _thumbH),
             Location = new Point(DpiUtil.Scale(this, 14), DpiUtil.Scale(this, 12)),
             SizeMode = PictureBoxSizeMode.Zoom,
             BackColor = VrcTheme.BgElevated,
-            Tag = thumbUrl,
+            Visible = showThumb,
+            Tag = new ThumbTag(entry.WorldId, thumbUrl),
         };
-        if (entry.Kind is FeedKind.Paused or FeedKind.Resumed)
+        if (showThumb && !string.IsNullOrWhiteSpace(thumbUrl) && _catalog is not null)
         {
-            pic.Visible = false;
-        }
-        else if (!string.IsNullOrWhiteSpace(thumbUrl) && _catalog is not null)
-        {
-            var cached = _catalog.TryGetCachedImage(thumbUrl, thumbW, thumbH);
+            var cached = _catalog.TryGetCachedImage(thumbUrl, _thumbW, _thumbH);
             if (cached is not null)
             {
                 pic.Image = cached;
             }
         }
 
-        var textLeft = pic.Visible ? pic.Right + DpiUtil.Scale(this, 12) : DpiUtil.Scale(this, 16);
+        var textLeft = showThumb ? pic.Right + DpiUtil.Scale(this, 12) : DpiUtil.Scale(this, 16);
         var textWidth = Math.Max(120, width - textLeft - DpiUtil.Scale(this, 12));
         var when = entry.At.ToLocalTime().ToString("ddd HH:mm:ss");
         var title = new Label
         {
+            Name = "title",
             AutoSize = false,
             Text = titleText,
             Font = VrcTheme.HeadingFont,
@@ -379,6 +419,7 @@ public sealed class ActivityLogForm : Form
         };
         var detail = new Label
         {
+            Name = "detail",
             AutoSize = false,
             Text = detailText,
             Font = VrcTheme.BodyFont,
@@ -403,47 +444,107 @@ public sealed class ActivityLogForm : Form
         return card;
     }
 
-    private async Task EnrichThumbsAsync(IReadOnlyList<ActivityEntry> entries)
+    private async Task FillThumbsInPlaceAsync(int generation)
     {
         if (_catalog is null)
         {
             return;
         }
 
-        foreach (var entry in entries)
+        // Snapshot cards so we do not rebuild while filling.
+        var cards = _cards.Controls.OfType<Panel>().ToList();
+        foreach (var card in cards)
         {
-            if (string.IsNullOrWhiteSpace(entry.WorldId))
+            if (generation != _enrichGeneration || IsDisposed)
+            {
+                return;
+            }
+
+            var pic = card.Controls.Find("thumb", false).OfType<PictureBox>().FirstOrDefault();
+            var title = card.Controls.Find("title", false).OfType<Label>().FirstOrDefault();
+            var detail = card.Controls.Find("detail", false).OfType<Label>().FirstOrDefault();
+            if (pic is null || !pic.Visible || pic.Tag is not ThumbTag thumbTag)
             {
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(entry.WorldName) || string.IsNullOrWhiteSpace(entry.ThumbnailImageUrl))
+            var worldId = thumbTag.WorldId;
+            var url = thumbTag.Url;
+
+            if (string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(worldId))
             {
                 try
                 {
-                    _ = await _catalog.Worlds.GetAsync(entry.WorldId).ConfigureAwait(true);
-                    if (IsHandleCreated && !IsDisposed)
+                    var info = await _catalog.Worlds.GetAsync(worldId).ConfigureAwait(true);
+                    if (generation != _enrichGeneration || IsDisposed)
                     {
-                        RefreshBasic(forceScroll: false);
-                        break;
+                        return;
+                    }
+
+                    url = info.ThumbnailImageUrl;
+                    pic.Tag = new ThumbTag(worldId, url);
+                    if (card.Tag is ActivityEntry entry)
+                    {
+                        PatchCardText(title, detail, entry, info.Name);
                     }
                 }
                 catch
                 {
-                    // offline / rate - ignore
+                    continue;
                 }
             }
-            else if (!string.IsNullOrWhiteSpace(entry.ThumbnailImageUrl))
+
+            if (string.IsNullOrWhiteSpace(url) || pic.Image is not null)
             {
-                try
-                {
-                    _ = await _catalog.GetImageAsync(entry.ThumbnailImageUrl, 112, 63).ConfigureAwait(true);
-                }
-                catch
-                {
-                    // ignore
-                }
+                continue;
             }
+
+            try
+            {
+                var img = await _catalog.GetImageAsync(url, _thumbW, _thumbH).ConfigureAwait(true);
+                if (generation != _enrichGeneration || IsDisposed || pic.IsDisposed)
+                {
+                    return;
+                }
+
+                pic.Image = img;
+            }
+            catch
+            {
+                // leave placeholder
+            }
+        }
+    }
+
+    private static void PatchCardText(Label? title, Label? detail, ActivityEntry entry, string? worldName)
+    {
+        if (string.IsNullOrWhiteSpace(worldName))
+        {
+            return;
+        }
+
+        if (title is not null)
+        {
+            title.Text = entry.Kind switch
+            {
+                FeedKind.ProtectedWorldEntered => $"Entered {worldName}",
+                FeedKind.StatusApplied when entry.Status is { } st
+                    => $"Status → {ProtectionStatusMapping.ToUserLabel(st)}",
+                FeedKind.GroupApplied => "Group representation updated",
+                _ => title.Text,
+            };
+        }
+
+        if (detail is not null)
+        {
+            detail.Text = entry.Kind switch
+            {
+                FeedKind.StatusApplied => $"Protected world: {worldName}",
+                FeedKind.GroupApplied => $"{worldName} · group updated",
+                FeedKind.ProtectedWorldEntered when entry.Status is { } st
+                    => $"Will set status to {ProtectionStatusMapping.ToUserLabel(st)}.",
+                _ => detail.Text,
+            };
         }
     }
 
@@ -478,4 +579,6 @@ public sealed class ActivityLogForm : Form
             form.ShowDialog();
         }
     }
+
+    private sealed record ThumbTag(string? WorldId, string? Url);
 }
