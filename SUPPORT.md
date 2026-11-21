@@ -28,7 +28,8 @@ usually out of scope.
 
 ## Install / update problems
 
-- Prefer the latest GitHub Release installer.
+- Install from the latest GitHub Release **Setup.exe** only (Velopack).
+- Use tray → **Check for updates…** after install; do not mix side-by-side copies.
 - Self-contained build: you should not need a separate .NET runtime.
 - Auth cookies live under `%LocalAppData%\VRChat Status Guard\` (migrated from
   the older Privacy Guard folder when present).

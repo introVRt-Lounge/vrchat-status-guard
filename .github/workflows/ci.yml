@@ -38,31 +38,17 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "8.0.x"
-      - name: Install Inno Setup
+      - name: Install vpk
         shell: pwsh
-        run: |
-          winget install --id JRSoftware.InnoSetup --exact --silent `
-            --accept-package-agreements --accept-source-agreements
-          $paths = @(
-            "${env:ProgramFiles(x86)}\Inno Setup 6",
-            "${env:ProgramFiles}\Inno Setup 7",
-            "${env:ProgramFiles(x86)}\Inno Setup 7"
-          )
-          foreach ($p in $paths) {
-            if (Test-Path (Join-Path $p "ISCC.exe")) {
-              "$p" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-              Write-Host "ISCC path: $p"
-              break
-            }
-          }
-      - name: Build Setup.exe
+        run: dotnet tool install -g vpk --version 1.2.161
+      - name: Build Velopack Setup.exe
         shell: pwsh
-        run: .\scripts\build-installer.ps1 -Version "0.1.0"
+        run: .\scripts\build-velopack.ps1 -Version "0.1.0" -SkipToolInstall
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: VrchatStatusGuard-Setup
-          path: artifacts/installer/*.exe
+          path: artifacts/velopack/*
           if-no-files-found: error
 
   secret-scan:

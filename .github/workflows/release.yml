@@ -1,6 +1,7 @@
 name: Release
 
 # Tag-gated: push v1.2.3 (or workflow_dispatch with version input).
+# Single installer path: Velopack Setup.exe + update packages only.
 on:
   push:
     tags:
@@ -49,28 +50,6 @@ jobs:
           "tag=v$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "Release version $v"
 
-      - name: Install Inno Setup
-        shell: pwsh
-        run: |
-          winget install --id JRSoftware.InnoSetup --exact --silent `
-            --accept-package-agreements --accept-source-agreements
-          $paths = @(
-            "${env:ProgramFiles(x86)}\Inno Setup 6",
-            "${env:ProgramFiles}\Inno Setup 7",
-            "${env:ProgramFiles(x86)}\Inno Setup 7"
-          )
-          foreach ($p in $paths) {
-            if (Test-Path (Join-Path $p "ISCC.exe")) {
-              "$p" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-              Write-Host "ISCC path: $p"
-              break
-            }
-          }
-
-      - name: Build Inno Setup.exe
-        shell: pwsh
-        run: .\scripts\build-installer.ps1 -Version "${{ steps.ver.outputs.version }}"
-
       - name: Install vpk
         shell: pwsh
         run: dotnet tool install -g vpk --version ${{ env.VELOPACK_VERSION }}
@@ -84,38 +63,23 @@ jobs:
             --token "${{ secrets.GITHUB_TOKEN }}" `
             --outputDir artifacts/velopack
 
-      - name: Velopack pack
+      - name: Publish + Velopack pack
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path artifacts/velopack | Out-Null
-          vpk pack `
-            --packId ${{ env.PACK_ID }} `
-            --packVersion ${{ steps.ver.outputs.version }} `
-            --packDir artifacts/publish `
-            --mainExe VrchatPrivacy.App.exe `
-            --packTitle "VRChat Status Guard" `
-            --outputDir artifacts/velopack
+          .\scripts\build-velopack.ps1 `
+            -Version "${{ steps.ver.outputs.version }}" `
+            -PackId "${{ env.PACK_ID }}" `
+            -VpkVersion "${{ env.VELOPACK_VERSION }}" `
+            -SkipToolInstall
 
-      - name: Upload installer artifact
+      - name: Upload Velopack artifact
         uses: actions/upload-artifact@v4
         with:
           name: VrchatStatusGuard-Setup
-          path: |
-            artifacts/installer/*.exe
-            artifacts/velopack/*
+          path: artifacts/velopack/*
           if-no-files-found: error
 
-      - name: Create / update GitHub Release (Inno)
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          name: VRChat Status Guard ${{ steps.ver.outputs.tag }}
-          target_commitish: ${{ github.sha }}
-          generate_release_notes: true
-          make_latest: true
-          files: artifacts/installer/*.exe
-
-      - name: Upload Velopack assets to GitHub Release
+      - name: Publish GitHub Release (Velopack)
         shell: pwsh
         run: |
           vpk upload github `
@@ -124,4 +88,4 @@ jobs:
             --outputDir artifacts/velopack `
             --tag ${{ steps.ver.outputs.tag }} `
             --releaseName "VRChat Status Guard ${{ steps.ver.outputs.tag }}" `
-            --merge
+            --publish

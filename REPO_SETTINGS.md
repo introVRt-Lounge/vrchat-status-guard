@@ -4,17 +4,19 @@
 |-------|-------|
 | Owner | `introVRt-Lounge` |
 | Name | `vrchat-status-guard` |
-| Visibility | **Private** |
+| Visibility | **Public** |
 | Default branch | `main` |
-| Profile | Private app - Tier **I** (+ I+ extras) |
+| Profile | Public OSS - Velopack Setup.exe is the only installer |
 
 ## CI
 
 Workflow: `.github/workflows/ci.yml`  
-Required aggregate job name: **`ci`** (test + secret-scan + owasp-sast + security-audit).  
+Required aggregate job name: **`ci`** (test + installer + secret-scan + owasp-sast + security-audit).  
 Runners:
-- **`windows-latest`**: test, security-audit, installer (Setup.exe artifact)
+- **`windows-latest`**: test, security-audit, installer (Velopack pack artifact)
 - **`ubuntu-latest`**: gitleaks + Semgrep only (Linux container images; not the product runtime)
+
+Release: `.github/workflows/release.yml` on `v*` tags - Velopack only (no Inno).
 
 Free private: branch protection / required checks often unavailable. Dependabot + `automerge` label use embedded `merge-on-green` on green `ci`.
 

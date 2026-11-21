@@ -28,22 +28,19 @@ Best-effort automation. A short delay after world entry is acceptable. Never aut
 
 ## Install (end users)
 
-1. Grab the latest GitHub Release: [Releases](https://github.com/introVRt-Lounge/vrchat-status-guard/releases).
-2. Prefer the **Velopack** `Setup.exe` when present (enables in-app updates). The Inno `VrchatStatusGuard-Setup-*.exe` still works for a classic install.
-3. Leave **Start with Windows** checked when the wizard offers it.
-4. Tray icon appears → **Login…** with your VRChat username/email, password, and 2FA if prompted.
-5. First run: a short **setup wizard** walks you through protecting one world (status required, group optional), then shows tray tips.
-6. Tray: **left-click** pauses/resumes; **double-click** opens the protection hub (does not pause); right-click for the full menu (including **Check for updates…** / **What's New…**).
-7. Protection hub: protected worlds first (status + group). Expand **Add from recent** or **Add by ID/URL** for the same guided steps.
-8. Enter a protected world - status (and optional group) apply. Leaving an unprotected world does not invent a status change.
+1. Download **Setup.exe** from the latest [GitHub Release](https://github.com/introVRt-Lounge/vrchat-status-guard/releases) (Velopack - the only installer).
+2. Run it. Tray icon appears → **Login…** with your VRChat username/email, password, and 2FA if prompted.
+3. First run: a short **setup wizard** walks you through protecting one world (status required, group optional), then shows tray tips.
+4. Tray: **left-click** pauses/resumes; **double-click** opens the protection hub (does not pause); right-click for the full menu (including **Check for updates…** / **What's New…** / **About…**).
+5. Protection hub: protected worlds first (status + group). Expand **Add from recent** or **Add by ID/URL** for the same guided steps.
+6. Enter a protected world - status (and optional group) apply. Leaving an unprotected world does not invent a status change.
 
-Self-contained build - no separate .NET runtime. Session cookies stay in DPAPI on that PC after first login. Releases are **tag-gated** (`v*`); maintainers push a version tag (or run the Release workflow manually) to publish.
+Self-contained build - no separate .NET runtime. In-app updates use the same Velopack channel. Session cookies stay in DPAPI on that PC after first login. Releases are **tag-gated** (`v*`); maintainers push a version tag (or run the Release workflow manually) to publish.
 
-Local build:
+Local pack (maintainers):
 
 ```powershell
-# Needs Inno Setup 6+ (winget install JRSoftware.InnoSetup)
-.\scripts\build-installer.ps1
+.\scripts\build-velopack.ps1 -Version 0.2.0
 ```
 
 ## Quick start (dev)
