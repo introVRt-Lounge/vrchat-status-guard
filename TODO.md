@@ -27,6 +27,7 @@
 - [x] [#33](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/33) Perfect-GitHub public readiness + flip public
 - [x] [#34](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/34) Velopack auto-update from GitHub Releases
 - [x] [#35](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/35) What's New UI from GitHub release notes
+- [ ] [#38](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/38) About page: feedback + introVRt Lounge credits
 - [x] [#10](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/10) Login + 2FA works (cookie rebuild after TOTP)
 - [x] [#11](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/11) Settings Save/Cancel button bar
 - [x] [#12](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/12) Protected worlds Add/Remove list UI

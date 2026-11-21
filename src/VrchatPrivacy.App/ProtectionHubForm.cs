@@ -28,6 +28,7 @@ public sealed class ProtectionHubForm : Form
     private readonly FlowLayoutPanel _headerStack;
     private readonly Panel _footer;
     private readonly Panel _addChrome;
+    private readonly LinkLabel _aboutLink;
     private AddWorldFlowControl? _flow;
     private CancellationTokenSource? _cts;
 
@@ -53,6 +54,19 @@ public sealed class ProtectionHubForm : Form
         _togglePaste.TextAlign = ContentAlignment.MiddleLeft;
         _toggleRecent.Padding = DpiUtil.Scale(this, 16, 10, 16, 10);
         _togglePaste.Padding = DpiUtil.Scale(this, 16, 10, 16, 10);
+
+        _aboutLink = new LinkLabel
+        {
+            Text = "About",
+            AutoSize = true,
+            Font = VrcTheme.SmallFont,
+            LinkColor = VrcTheme.Accent,
+            ActiveLinkColor = VrcTheme.TextPrimary,
+            VisitedLinkColor = VrcTheme.Accent,
+            BackColor = Color.Transparent,
+            TabStop = true,
+        };
+        _aboutLink.LinkClicked += (_, _) => AboutForm.ShowAbout(this);
 
         _headerStack = new FlowLayoutPanel
         {
@@ -116,6 +130,11 @@ public sealed class ProtectionHubForm : Form
         Controls.Add(_addChrome);
         Controls.Add(_footer);
         Controls.Add(_headerStack);
+        // Top-right About stays visible even in sole-focus (header hidden).
+        Controls.Add(_aboutLink);
+        _aboutLink.BringToFront();
+        Resize += (_, _) => LayoutAboutLink();
+        LayoutAboutLink();
 
         _done.Click += (_, _) =>
         {
@@ -127,6 +146,7 @@ public sealed class ProtectionHubForm : Form
 
         Shown += async (_, _) =>
         {
+            LayoutAboutLink();
             _toggleRecent.Width = Math.Max(200, _addChrome.ClientSize.Width);
             _togglePaste.Width = Math.Max(200, _addChrome.ClientSize.Width);
             _busy.Text = _catalog.IsWarming ? "Refreshing catalog…" : "";
@@ -141,6 +161,15 @@ public sealed class ProtectionHubForm : Form
     }
 
     public AppSettings Result => _settings;
+
+    private void LayoutAboutLink()
+    {
+        var pad = DpiUtil.Scale(this, 16);
+        _aboutLink.Location = new Point(
+            Math.Max(pad, ClientSize.Width - _aboutLink.Width - pad),
+            pad);
+        _aboutLink.BringToFront();
+    }
 
     private void ToggleFlow(bool allowPaste)
     {
@@ -173,6 +202,7 @@ public sealed class ProtectionHubForm : Form
         _footer.Visible = false;
         _addHost.Visible = true;
         _addHost.BringToFront();
+        _aboutLink.BringToFront();
         Text = mode == AddWorldFlowControl.Mode.Edit ? "Status Guard · Edit world" :
             mode == AddWorldFlowControl.Mode.FromPaste ? "Status Guard · Add by ID" :
             "Status Guard · Add world";
