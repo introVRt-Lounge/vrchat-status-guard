@@ -45,7 +45,7 @@
 - [x] [#28](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/28) Group logo on protected world cards
 - [x] [#29](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/29) Prefix protected card group with Repping
 - [x] [#31](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/31) Tray single-click pause + full card outline
-- [ ] [#32](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/32) Rebrand Status Guard + purge sleep-world + Windows release CI
+- [x] [#32](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/32) Rebrand Status Guard + purge sleep-world + Windows release CI
 - [ ] End-user path confirm: enter protected world → status becomes orange/red in-game
 - [ ] Bounded backoff UI polish on repeated auth/network failure
 - [ ] Optional: store TOTP secret for seamless re-login (today: interactive OTP)
