@@ -31,8 +31,9 @@ public sealed class ActivityLogForm : Form
     {
         _journal = journal;
         _catalog = catalog;
-        _thumbW = DpiUtil.Scale(this, 112);
-        _thumbH = DpiUtil.Scale(this, 63);
+        // Match HubCatalog warmup size (160x90) so thumbs hit the shared image cache.
+        _thumbW = 160;
+        _thumbH = 90;
 
         Text = "Activity - VRChat Status Guard";
         FormBorderStyle = FormBorderStyle.Sizable;
@@ -494,7 +495,12 @@ public sealed class ActivityLogForm : Form
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(url) || pic.Image is not null)
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                continue;
+            }
+
+            if (pic.Image is not null)
             {
                 continue;
             }
@@ -507,11 +513,12 @@ public sealed class ActivityLogForm : Form
                     return;
                 }
 
-                pic.Image = img;
+                // Copy so PictureBox owns a stable bitmap (avoids shared-cache glitches).
+                pic.Image = new Bitmap(img);
             }
-            catch
+            catch (Exception ex)
             {
-                // leave placeholder
+                VrchatPrivacy.Core.Logging.AppLog.Warn($"Activity thumb failed: {ex.Message}");
             }
         }
     }

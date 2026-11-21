@@ -140,11 +140,11 @@ public sealed class HubCatalog : IDisposable
             _images[key] = bmp;
             return bmp;
         }
-        catch
+        catch (Exception ex)
         {
-            var ph = Placeholder(w, h, "?");
-            _images.TryAdd(key, ph);
-            return ph;
+            AppLog.Warn($"HubCatalog image failed: {ex.Message}");
+            // Do not cache failures - next open / retry can recover.
+            return Placeholder(w, h, "?");
         }
     }
 
