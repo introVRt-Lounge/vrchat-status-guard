@@ -38,6 +38,7 @@ public sealed class TrayAppContext : ApplicationContext
         _catalog = new HubCatalog(_session);
         _updates = new AppUpdateService();
         _orchestrator.StateChanged += (_, _) => BeginInvoke(UpdateTray);
+        _orchestrator.ProtectionApplied += (_, e) => BeginInvoke(() => NotifyProtectionApplied(e));
 
         _statusItem = new ToolStripMenuItem("Status: starting…") { Enabled = false };
         _pauseItem = new ToolStripMenuItem("Pause protection", null, (_, _) => TogglePause());
@@ -514,6 +515,21 @@ public sealed class TrayAppContext : ApplicationContext
         if (!_tray.Visible)
         {
             _tray.Visible = true;
+        }
+    }
+
+    private void NotifyProtectionApplied(ProtectionAppliedEventArgs e)
+    {
+        UpdateTray();
+        var title = e.RepresentGroupId is null ? "Status updated" : "Status + group updated";
+        var body = $"{ProtectionStatusMapping.ToUserLabel(e.Status)}\n{e.WorldId}";
+        try
+        {
+            _tray.ShowBalloonTip(4500, title, Trim(body, 120), ToolTipIcon.Info);
+        }
+        catch
+        {
+            // Balloons are best-effort (Focus Assist / shell quirks).
         }
     }
 
