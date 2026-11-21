@@ -1,0 +1,70 @@
+name: Bug report
+description: Something broken or behaving unexpectedly.
+title: "[bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Include enough detail to reproduce without a back-and-forth.
+
+        **Security issue?** Do not file it here — see [SECURITY.md](https://github.com/introVRt-Lounge/vrchat-status-guard/blob/main/SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Installer name, git tag, or About/tray tooltip version if shown.
+      placeholder: "v0.1.5 / VrchatStatusGuard-Setup-0.1.5.exe"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: Output of `winver` is fine.
+      placeholder: "Windows 10 22H2 / Windows 11 24H2"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Exact steps, and what you saw (tray tip, status colour, hub UI).
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: |
+        Step-by-step. World IDs only (not names). Redact usernames if needed.
+      placeholder: |
+        1. Start Status Guard, logged in
+        2. Protect wrld_... with Ask Me
+        3. Join that world in VRChat
+        4. Observe status stays green
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste from `%LocalAppData%\VRChat Status Guard\logs\` (strip cookies/tokens).
+      render: shell
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: This is Windows PC VRChat (not Quest-only).
+          required: true
+        - label: This is not a security issue (those go via SECURITY.md).
+          required: true

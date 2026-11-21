@@ -15,7 +15,8 @@ Best-effort automation. A short delay after world entry is acceptable. Never aut
 - [Build brief](docs/BUILD_BRIEF.md)
 - [Research notes (logs + API)](docs/research/vrchat-logs-and-api.md)
 - [Milestone 1 plan](docs/plans/2026-11-20-milestone-1.md)
-- [CONTRIBUTING](CONTRIBUTING.md) · [SECURITY](SECURITY.md) · [REPO_SETTINGS](REPO_SETTINGS.md) · [TODO](TODO.md)
+- [CONTRIBUTING](CONTRIBUTING.md) · [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md) · [SUPPORT](SUPPORT.md) · [SECURITY](SECURITY.md) · [REPO_SETTINGS](REPO_SETTINGS.md) · [TODO](TODO.md)
+- License: [MIT](LICENSE)
 
 ## Architecture (testable slices)
 

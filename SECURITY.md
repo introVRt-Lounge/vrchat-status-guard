@@ -2,11 +2,14 @@
 
 ## Scope
 
-This private Windows tray app authenticates to the unofficial VRChat API and reads the local user's VRChat output logs.
+This Windows tray app authenticates to the unofficial VRChat API and reads the local user's VRChat output logs.
 
 ## Reporting
 
-Email security concerns to the introVRt Lounge maintainers (HeavyGee / org admins). Do not open a public issue for credential exposure or auth bugs.
+**Do not open a public issue** for credential exposure, auth bugs, or other vulns.
+
+Prefer [GitHub Security Advisories](https://github.com/introVRt-Lounge/vrchat-status-guard/security/advisories/new).
+You can also email `h34vyg33@gmail.com` with subject `vrchat-status-guard security`.
 
 ## Rules for contributors and agents
 

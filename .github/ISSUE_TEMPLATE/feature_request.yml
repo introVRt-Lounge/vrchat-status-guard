@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest a new capability or improvement.
+title: "[feat]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Status Guard is intentionally focused on Windows PC VRChat status/group
+        automation for **world IDs** you protect. Out-of-scope requests (Quest,
+        inventing blue restore, controlling other users) may close as `wontfix` —
+        describe the underlying need so we can suggest alternatives.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Operator pain point, not the proposed feature.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: How would the tray/hub experience change?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Hard constraints still OK?
+      options:
+        - label: World ID matching only (no name matching)
+          required: true
+        - label: No automatic blue / join-me unless the user opts in per world
+          required: true
