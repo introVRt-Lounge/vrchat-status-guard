@@ -1,0 +1,43 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+*.nupkg
+project.lock.json
+artifacts/
+
+## Secrets / local config
+.env
+.env.*
+!.env.example
+*.pfx
+appsettings.*.local.json
+credentials.json
+**/AuthCookies.bin
+
+## OS / editors
+Thumbs.db
+Desktop.ini
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+## Agent / tool dirs
+.agents/
+.claude/
+.skills/
+.cursor/
+.specstory/
+
+## Logs / local captures (never commit live VRChat logs)
+*.log
+output_log_*.txt
+/local/
+
+## Publish / installer output
+/artifacts/

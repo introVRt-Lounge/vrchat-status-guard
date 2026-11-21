@@ -1,0 +1,72 @@
+name: Release
+
+# Every merge/push to main builds the Windows installer and publishes a GitHub Release.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          winget install --id JRSoftware.InnoSetup --exact --silent `
+            --accept-package-agreements --accept-source-agreements
+          $paths = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6",
+            "${env:ProgramFiles}\Inno Setup 7",
+            "${env:ProgramFiles(x86)}\Inno Setup 7"
+          )
+          foreach ($p in $paths) {
+            if (Test-Path (Join-Path $p "ISCC.exe")) {
+              "$p" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+              Write-Host "ISCC path: $p"
+              break
+            }
+          }
+
+      - name: Version from run number
+        id: ver
+        shell: pwsh
+        run: |
+          $v = "0.1.$env:GITHUB_RUN_NUMBER"
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "tag=v$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Release version $v"
+
+      - name: Build Setup.exe
+        shell: pwsh
+        run: .\scripts\build-installer.ps1 -Version "${{ steps.ver.outputs.version }}"
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VrchatStatusGuard-Setup
+          path: artifacts/installer/*.exe
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: VRChat Status Guard ${{ steps.ver.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          make_latest: true
+          files: artifacts/installer/*.exe

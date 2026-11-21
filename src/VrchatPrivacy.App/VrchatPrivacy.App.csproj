@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\VrchatPrivacy.Core\VrchatPrivacy.Core.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <AssemblyName>VrchatPrivacy.App</AssemblyName>
+    <Product>VRChat Status Guard</Product>
+    <Company>introVRt Lounge</Company>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+</Project>

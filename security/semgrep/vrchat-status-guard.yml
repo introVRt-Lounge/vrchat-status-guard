@@ -1,0 +1,27 @@
+rules:
+  - id: vrchat-status-guard.no-console-password
+    languages: [csharp]
+    severity: ERROR
+    message: Never write password/OTP/cookie material to the console.
+    patterns:
+      - pattern: Console.WriteLine($MSG)
+      - metavariable-regex:
+          metavariable: $MSG
+          regex: '(?i).*(password|totp|otp|authcookie|twofactorauth).*'
+    paths:
+      include:
+        - 'src/**/*.cs'
+        - 'tests/**/*.cs'
+
+  - id: vrchat-status-guard.no-debug-cookie
+    languages: [csharp]
+    severity: ERROR
+    message: Never Debug.WriteLine auth cookie values.
+    patterns:
+      - pattern: System.Diagnostics.Debug.WriteLine($MSG)
+      - metavariable-regex:
+          metavariable: $MSG
+          regex: '(?i).*(authcookie|cookie|session.?token).*'
+    paths:
+      include:
+        - 'src/**/*.cs'
