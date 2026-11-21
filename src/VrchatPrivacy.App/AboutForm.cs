@@ -15,7 +15,7 @@ public sealed class AboutForm : Form
         MinimizeBox = false;
         ShowInTaskbar = true;
         StartPosition = FormStartPosition.CenterParent;
-        ClientSize = new Size(520, 520);
+        ClientSize = new Size(520, 640);
         VrcTheme.StyleForm(this);
 
         var root = new TableLayoutPanel
@@ -79,6 +79,21 @@ public sealed class AboutForm : Form
         stack.Controls.Add(LinkRow("Discord", LoungeLinks.DiscordInvite));
         stack.Controls.Add(LinkRow("VRChat group", LoungeLinks.VrchatGroup));
         stack.Controls.Add(LinkRow("GitHub org", LoungeLinks.GitHubOrg));
+
+        stack.Controls.Add(Spacer(16));
+        stack.Controls.Add(Section("Limitations (API rate budget)"));
+        stack.Controls.Add(DpiUtil.AutoLabel(
+            "VRChat staff (via Tupper) say third-party apps must not query the unofficial API more than once per 60 seconds. Abuse can terminate accounts. Status Guard enforces that as a hard mutation budget.",
+            VrcTheme.BodyFont,
+            VrcTheme.TextPrimary,
+            maxWidth: 460));
+        stack.Controls.Add(DpiUtil.AutoLabel(
+            "Status may take up to ~60s after a recent mutation (or apply almost immediately if the budget is free). Status always comes before optional group repping. Hopping worlds does not reset the timer - we coalesce to your latest world and cancel stale applies.",
+            VrcTheme.BodyFont,
+            VrcTheme.TextPrimary,
+            maxWidth: 460));
+        stack.Controls.Add(LinkRow("Citation (C# SDK disclaimer)", LoungeLinks.VrchatApiCsharpDisclaimer));
+        stack.Controls.Add(LinkRow("Citation (API specification)", LoungeLinks.VrchatApiSpecification));
 
         stack.Controls.Add(Spacer(16));
         stack.Controls.Add(Section("Feedback"));

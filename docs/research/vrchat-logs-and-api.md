@@ -61,15 +61,22 @@ Identify the client (`WithApplication` / User-Agent). VRChat rejects anonymous c
 
 ## Abuse / rate guidance (community)
 
-Unofficial API disclaimer (VRChat team via Tupper, quoted in SDK README):
+Unofficial API disclaimer (VRChat team via **Tupper**, quoted in community SDK READMEs):
 
 - No official support.
 - Do not query more than once per 60 seconds.
 - Abuse may terminate the account.
 - Endpoints can break without notice.
 
+**Primary citations:**
+
+- [vrchatapi-csharp README - Disclaimer](https://github.com/vrchatapi/vrchatapi-csharp)
+- [vrchatapi/specification](https://github.com/vrchatapi/specification) (Tupper policy)
+- [vrchatapi-python README - Disclaimer](https://github.com/vrchatapi/vrchatapi-python) (same wording)
+
 **Implication:** status changes must be coalesced; startup + enter-world storms need a single-flight + ≥60s spacing.
-Applying status **and** group representation on the same join is two mutations - expect ~60s between them.
+Status is privacy-critical and takes the mutation slot first; group representation is deferred so it cannot block the next status apply.
+World changes do **not** reset the 60s budget - only time since the last successful mutation does.
 
 ## Groups (representation + local order)
 
