@@ -4,58 +4,53 @@
 
 ![Status Guard banner](docs/assets/status-guard-banner.jpg)
 
-<p align="center"><img src="docs/assets/status-guard-logo.jpg" alt="VRChat Status Guard logo" width="220" /></p>
+## Does this actually work?
 
-## Friends, lend me your ears
+**Not reliably - and that is VRChat's fault, not a missing checkbox in this app.**
 
-**Do you like to party?** Do you *also* like to chill? Want to make sure your chill is not interrupted by surprise guests crashing the velvet rope?
+Status Guard writes Ask Me / Do Not Disturb / Join Me through the unofficial API. The website and tools like VRCX see that change. The **live game client often does not**: friends can still see Join Me and still get a Join path after the API already says otherwise. There is no OSC or supported local way to force the client.
 
-**You need VRChat Status Guard!**
+Until VRChat makes API status changes update in-game joinability, **your mileage will vary** - not "may." Rely on this tool alone for privacy and you are setting yourself up for significant disappointment. Treat it as braces with **no belt**. Invite / Invite+ instances remain the hard door.
 
-We keep your **public** public and your **private** private - **automatically**. Walk into a world you have marked as protected and Status Guard sets your status to Ask Me, Do Not Disturb, or (when you opt in) Join Me. Leave the guessing to the doorman. You keep the sofa.
+**Want this tool to actually work?** Go upvote and comment on VRChat's own report so they fix the platform:
 
-Brought to you by the **[introVRt Lounge](https://vrchat.com/home/group/grp_481c4787-5fca-44b2-b6e4-d2d8c585f125)** - movies, games, and good company for fellow introverts. Join the Discord at **[tiny.cc/introvrt](https://tiny.cc/introvrt)**. Website: [introvrtlounge.com](https://www.introvrtlounge.com/).
+→ [VRC Rest API / Websocket issues - Status and Avatar Changes Are Extremely Unreliable](https://feedback.vrchat.com/open-beta/p/vrc-rest-api-websocket-issues-since-years-status-and-avatar-changes-are-extremel)
 
-Unofficial Windows tray helper for PC VRChat. Best-effort automation. A short delay after world entry is acceptable. Never invents a blue / Join Me restore unless you configured that world yourself.
+## What it is
 
-## Status
+Unofficial Windows tray helper for PC VRChat. Mark worlds as protected; on enter it asks the API for Ask Me, Do Not Disturb, or (opt-in) Join Me, and can set group repping. Best-effort automation for when the client happens to listen.
 
-Runtime tray app under [`introVRt-Lounge`](https://github.com/introVRt-Lounge). Default protected world: [VRChat Home](https://vrchat.com/home/world/wrld_4432ea9b-729c-46e3-8eaf-846aa0a37fdd/info) → **Ask Me (orange)** (configurable to red). Login via tray; cookies in DPAPI.
+Brought to you by the **[introVRt Lounge](https://vrchat.com/home/group/grp_481c4787-5fca-44b2-b6e4-d2d8c585f125)** - movies, games, and good company for fellow introverts. Discord: **[tiny.cc/introvrt](https://tiny.cc/introvrt)**. Site: [introvrtlounge.com](https://www.introvrtlounge.com/).
 
-## Docs
+## Rate limit (Tupper)
 
-- [Build brief](docs/BUILD_BRIEF.md)
-- [Research notes (logs + API)](docs/research/vrchat-logs-and-api.md)
-- [Milestone 1 plan](docs/plans/2026-11-20-milestone-1.md)
-- [CONTRIBUTING](CONTRIBUTING.md) · [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md) · [SUPPORT](SUPPORT.md) · [SECURITY](SECURITY.md) · [REPO_SETTINGS](REPO_SETTINGS.md) · [TODO](TODO.md)
-- License: [MIT](LICENSE)
+Third-party apps must not hit the unofficial API more than **once per 60 seconds** (abuse can terminate accounts). We treat that as a hard budget for status and group mutations.
 
-## Architecture (testable slices)
+- Status may take **up to ~60s** after a recent mutation (or apply immediately if the budget is free).
+- Status always before optional group repping; world hops coalesce to the latest join and cancel stale applies.
+- Balloons mean the API write landed - not that the live client matched.
+- No mutations while the VRChat process is not running.
 
-| Project | Role |
-|---------|------|
-| `VrchatPrivacy.Core` | Log parse, world rules, auth/session interfaces, protection decisions |
-| `VrchatPrivacy.App` | WinForms tray + settings (Windows only) |
-| `VrchatPrivacy.Core.Tests` | Unit tests (Linux CI-friendly) |
+Citations: [vrchatapi-csharp](https://github.com/vrchatapi/vrchatapi-csharp) · [specification](https://github.com/vrchatapi/specification) · [vrchatapi-python](https://github.com/vrchatapi/vrchatapi-python)
 
-## Install (end users)
+## Install
 
-1. Download **Setup.exe** from the latest [GitHub Release](https://github.com/introVRt-Lounge/vrchat-status-guard/releases) (Velopack - the only installer).
-2. Run it. Tray icon appears → **Login…** with your VRChat username/email, password, and 2FA if prompted.
-3. First run: a short **setup wizard** walks you through protecting one world (status required, group optional), then shows tray tips.
-4. Tray: **left-click** pauses/resumes; **double-click** opens (or foregrounds) the protection hub; right-click for **Check for updates…** / **What's New…** / **About…**.
-5. Protection hub: protected worlds first (status + group). Expand **Add from recent** or **Add by ID/URL** for the same guided steps.
-6. Enter a protected world - status (and optional group) apply.
+1. Download **Setup.exe** from the latest [GitHub Release](https://github.com/introVRt-Lounge/vrchat-status-guard/releases) (Velopack).
+2. Tray → **Login…** (username/email, password, 2FA if prompted).
+3. First-run wizard: protect one world (status required, group optional).
+4. Tray: left-click pause/resume; double-click protection hub; right-click for activity log / updates / About.
+5. Enter a protected world - API status (and optional group) apply when the budget allows.
 
-Self-contained build - no separate .NET runtime. In-app updates use the same Velopack channel. Session cookies stay in DPAPI on that PC after first login. Releases are **tag-gated** (`v*`).
+Self-contained (.NET embedded). Cookies in DPAPI. Releases are tag-gated (`v*`).
 
-Local pack (maintainers):
+Maintainer local install (matches Startup Run key):
 
 ```powershell
-.\scripts\build-velopack.ps1 -Version 0.2.0
+.\scripts\deploy-local-install.ps1
+.\scripts\build-velopack.ps1 -Version 0.2.0   # pack only
 ```
 
-## Quick start (dev)
+## Dev
 
 ```powershell
 dotnet restore src/VrchatPrivacy.sln
@@ -63,15 +58,23 @@ dotnet test tests/VrchatPrivacy.Core.Tests/VrchatPrivacy.Core.Tests.csproj
 dotnet run --project src/VrchatPrivacy.App/VrchatPrivacy.App.csproj
 ```
 
-Requires .NET 8 SDK. VRChat client logs: `%UserProfile%\AppData\LocalLow\VRChat\VRChat\output_log_*.txt`.
+| Project | Role |
+|---------|------|
+| `VrchatPrivacy.Core` | Log parse, rules, auth, protection decisions |
+| `VrchatPrivacy.App` | WinForms tray (Windows) |
+| `VrchatPrivacy.Core.Tests` | Unit tests |
 
-## Hard constraints (do not "improve" away)
+VRChat logs: `%UserProfile%\AppData\LocalLow\VRChat\VRChat\output_log_*.txt`.
 
-- Match **world IDs** only (not names / instance IDs).
-- Leave status alone when leaving protected worlds (no surprise blue restore). Blue only when explicitly set for a world.
-- Store session cookies with Windows DPAPI; never log passwords, OTP codes, or tokens.
-- Unofficial VRChat API: identify the app; treat **≤1 mutating request / 60s** as a hard rate budget.
+## Hard constraints
 
-## License
+- Match **world IDs** only.
+- Do not invent blue / Join Me on leave; blue only when configured for that world.
+- DPAPI for cookies; never log passwords, OTP, or tokens.
+- ≤1 mutating request / 60s (see above).
 
-[MIT](LICENSE). Unofficial - not affiliated with VRChat Inc.
+## Docs / license
+
+[BUILD_BRIEF](docs/BUILD_BRIEF.md) · [research](docs/research/vrchat-logs-and-api.md) · [CONTRIBUTING](CONTRIBUTING.md) · [TODO](TODO.md) · [MIT](LICENSE)
+
+Unofficial - not affiliated with VRChat Inc.

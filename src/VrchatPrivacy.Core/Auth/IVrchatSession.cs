@@ -24,6 +24,9 @@ public interface IVrchatSession
 
     Task<bool> TryResumeFromStoreAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Drop in-memory client and wipe stored session cookies (DPAPI auth.bin).</summary>
+    Task LogoutAsync(CancellationToken cancellationToken = default);
+
     Task<SessionSnapshot> GetCurrentUserAsync(CancellationToken cancellationToken = default);
 
     Task ApplyProtectionStatusAsync(ProtectionStatus status, CancellationToken cancellationToken = default);

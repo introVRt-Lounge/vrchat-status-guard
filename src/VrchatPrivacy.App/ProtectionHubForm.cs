@@ -1,3 +1,4 @@
+using VrchatPrivacy.Core.Activity;
 using VrchatPrivacy.Core.Groups;
 using VrchatPrivacy.Core.Protection;
 using VrchatPrivacy.Core.Settings;
@@ -11,6 +12,7 @@ public sealed class ProtectionHubForm : Form
 {
     private readonly AppSettings _settings;
     private readonly HubCatalog _catalog;
+    private readonly ActivityJournal _activity;
     private readonly FlowLayoutPanel _protectedGrid = new()
     {
         Dock = DockStyle.Fill,
@@ -29,13 +31,15 @@ public sealed class ProtectionHubForm : Form
     private readonly Panel _footer;
     private readonly Panel _addChrome;
     private readonly LinkLabel _aboutLink;
+    private readonly LinkLabel _logLink;
     private AddWorldFlowControl? _flow;
     private CancellationTokenSource? _cts;
 
-    public ProtectionHubForm(AppSettings settings, HubCatalog catalog)
+    public ProtectionHubForm(AppSettings settings, HubCatalog catalog, ActivityJournal? activity = null)
     {
         _settings = settings;
         _catalog = catalog;
+        _activity = activity ?? new ActivityJournal();
 
         Text = "Status Guard";
         FormBorderStyle = FormBorderStyle.Sizable;
@@ -66,7 +70,20 @@ public sealed class ProtectionHubForm : Form
             BackColor = Color.Transparent,
             TabStop = true,
         };
-        _aboutLink.LinkClicked += (_, _) => AboutForm.ShowAbout(this);
+        _aboutLink.LinkClicked += (_, _) => AboutForm.ShowAbout(this, _activity, _catalog);
+
+        _logLink = new LinkLabel
+        {
+            Text = "Activity log",
+            AutoSize = true,
+            Font = VrcTheme.SmallFont,
+            LinkColor = VrcTheme.Accent,
+            ActiveLinkColor = VrcTheme.TextPrimary,
+            VisitedLinkColor = VrcTheme.Accent,
+            BackColor = Color.Transparent,
+            TabStop = true,
+        };
+        _logLink.LinkClicked += (_, _) => ActivityLogForm.ShowLog(this, _activity, _catalog);
 
         _headerStack = new FlowLayoutPanel
         {
@@ -130,9 +147,11 @@ public sealed class ProtectionHubForm : Form
         Controls.Add(_addChrome);
         Controls.Add(_footer);
         Controls.Add(_headerStack);
-        // Top-right About stays visible even in sole-focus (header hidden).
+        // Top-right links stay visible even in sole-focus (header hidden).
         Controls.Add(_aboutLink);
+        Controls.Add(_logLink);
         _aboutLink.BringToFront();
+        _logLink.BringToFront();
         Resize += (_, _) => LayoutAboutLink();
         LayoutAboutLink();
 
@@ -165,10 +184,15 @@ public sealed class ProtectionHubForm : Form
     private void LayoutAboutLink()
     {
         var pad = DpiUtil.Scale(this, 16);
+        var gap = DpiUtil.Scale(this, 12);
         _aboutLink.Location = new Point(
             Math.Max(pad, ClientSize.Width - _aboutLink.Width - pad),
             pad);
+        _logLink.Location = new Point(
+            Math.Max(pad, _aboutLink.Left - _logLink.Width - gap),
+            pad);
         _aboutLink.BringToFront();
+        _logLink.BringToFront();
     }
 
     private void ToggleFlow(bool allowPaste)

@@ -33,3 +33,14 @@ usually out of scope.
 - Self-contained build: you should not need a separate .NET runtime.
 - Auth cookies live under `%LocalAppData%\VRChat Status Guard\` (migrated from
   the older Privacy Guard folder when present).
+
+## Status took a while / stayed the same for under a minute
+
+That is often the intentional **~60s mutation budget** from VRChat team (Tupper)
+guidance for unofficial API use - not a hung tray. See README
+[Limitations](README.md#limitations) and tray → **About…**. Status is applied
+before optional group repping; world hops do not reset the timer.
+
+Use tray → **Activity log…** (or hub → Activity log) to see joins, decisions,
+and `ApplyStatus` lines with timestamps. The same file lives at
+`%LocalAppData%\introVRt Lounge\VRChat Status Guard\guard.log`.

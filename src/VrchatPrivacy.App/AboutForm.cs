@@ -1,21 +1,27 @@
 using System.Diagnostics;
 using VrchatPrivacy.App.Ui;
 using VrchatPrivacy.App.Updates;
+using VrchatPrivacy.Core.Activity;
 
 namespace VrchatPrivacy.App;
 
 /// <summary>Credits (introVRt Lounge) + feedback (GitHub issues / PRs welcome).</summary>
 public sealed class AboutForm : Form
 {
-    public AboutForm()
+    private readonly ActivityJournal? _activity;
+    private readonly HubCatalog? _catalog;
+
+    public AboutForm(ActivityJournal? activity = null, HubCatalog? catalog = null)
     {
-        Text = "About - VRChat Status Guard";
+        _activity = activity;
+        _catalog = catalog;
+        Text = "About - Status Guard";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = true;
         StartPosition = FormStartPosition.CenterParent;
-        ClientSize = new Size(520, 520);
+        ClientSize = new Size(520, 640);
         VrcTheme.StyleForm(this);
 
         var root = new TableLayoutPanel
@@ -56,14 +62,14 @@ public sealed class AboutForm : Form
             });
         }
 
-        stack.Controls.Add(DpiUtil.AutoLabel("VRChat Status Guard", VrcTheme.TitleFont, VrcTheme.TextPrimary));
+        stack.Controls.Add(DpiUtil.AutoLabel("Status Guard", VrcTheme.TitleFont, VrcTheme.TextPrimary));
         stack.Controls.Add(DpiUtil.AutoLabel(
             $"Version {AppUpdateService.CurrentVersion}",
             VrcTheme.SmallFont,
             VrcTheme.TextMuted));
         stack.Controls.Add(Spacer(8));
         stack.Controls.Add(DpiUtil.AutoLabel(
-            "Do you like to party? Do you also like to chill? We keep your public public and your private private - automatically.",
+            "Do you like to party? Do you also like to chill? Status Guard asks the API to keep your private private - when VRChat's client listens.",
             VrcTheme.BodyFont,
             VrcTheme.TextPrimary,
             maxWidth: 460));
@@ -79,6 +85,47 @@ public sealed class AboutForm : Form
         stack.Controls.Add(LinkRow("Discord", LoungeLinks.DiscordInvite));
         stack.Controls.Add(LinkRow("VRChat group", LoungeLinks.VrchatGroup));
         stack.Controls.Add(LinkRow("GitHub org", LoungeLinks.GitHubOrg));
+
+        stack.Controls.Add(Spacer(16));
+        stack.Controls.Add(Section("Honest limitations"));
+        stack.Controls.Add(DpiUtil.AutoLabel(
+            "API status writes often do not update the live game client. Friends can still see Join Me after we set Ask Me. Until VRChat fixes that, mileage will vary - do not rely on this alone for privacy. Braces without a belt.",
+            VrcTheme.BodyFont,
+            VrcTheme.TextPrimary,
+            maxWidth: 460));
+        stack.Controls.Add(LinkRow("VRChat feedback (status desync)", LoungeLinks.VrchatStatusApiDesync));
+        stack.Controls.Add(DpiUtil.AutoLabel(
+            "Platform guidance (via Tupper) says third-party apps must not query the unofficial API more than once per 60 seconds. Abuse can terminate accounts. Status Guard enforces that as a hard mutation budget.",
+            VrcTheme.BodyFont,
+            VrcTheme.TextPrimary,
+            maxWidth: 460));
+        stack.Controls.Add(DpiUtil.AutoLabel(
+            "Status may take up to ~60s after a recent mutation (or apply almost immediately if the budget is free). Status always comes before optional group repping. Hopping worlds does not reset the timer - we coalesce to your latest world and cancel stale applies.",
+            VrcTheme.BodyFont,
+            VrcTheme.TextPrimary,
+            maxWidth: 460));
+        stack.Controls.Add(LinkRow("Citation (C# SDK disclaimer)", LoungeLinks.VrchatApiCsharpDisclaimer));
+        stack.Controls.Add(LinkRow("Citation (API specification)", LoungeLinks.VrchatApiSpecification));
+
+        stack.Controls.Add(Spacer(16));
+        stack.Controls.Add(Section("Activity log"));
+        stack.Controls.Add(DpiUtil.AutoLabel(
+            "See world joins, protection decisions, and status/group applies with timestamps.",
+            VrcTheme.BodyFont,
+            VrcTheme.TextPrimary,
+            maxWidth: 460));
+        var openLog = new Button { Text = "Open activity log…", AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
+        VrcTheme.StyleGhostButton(openLog);
+        openLog.Click += (_, _) =>
+        {
+            if (_activity is null)
+            {
+                return;
+            }
+
+            ActivityLogForm.ShowLog(this, _activity, _catalog);
+        };
+        stack.Controls.Add(openLog);
 
         stack.Controls.Add(Spacer(16));
         stack.Controls.Add(Section("Feedback"));
@@ -127,7 +174,7 @@ public sealed class AboutForm : Form
     {
         try
         {
-            var path = Path.Combine(AppContext.BaseDirectory, "Assets", "status-guard-logo.jpg");
+            var path = Path.Combine(AppContext.BaseDirectory, "Assets", "status-guard-logo.png");
             if (!File.Exists(path))
             {
                 return null;
@@ -182,9 +229,12 @@ public sealed class AboutForm : Form
         return row;
     }
 
-    public static void ShowAbout(IWin32Window? owner)
+    public static void ShowAbout(
+        IWin32Window? owner,
+        ActivityJournal? activity = null,
+        HubCatalog? catalog = null)
     {
-        using var form = new AboutForm();
+        using var form = new AboutForm(activity, catalog);
         if (owner is not null)
         {
             form.ShowDialog(owner);

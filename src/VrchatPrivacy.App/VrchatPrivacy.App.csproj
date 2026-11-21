@@ -9,7 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Assets\status-guard-logo.jpg">
+    <None Update="Assets\status-guard-logo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
@@ -21,8 +21,12 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!-- Keep AssemblyName for installed exe / Velopack mainExe stability. -->
     <AssemblyName>VrchatPrivacy.App</AssemblyName>
-    <Product>VRChat Status Guard</Product>
+    <!-- Windows notification attribution uses FileDescription ← AssemblyTitle. -->
+    <AssemblyTitle>Status Guard</AssemblyTitle>
+    <Product>Status Guard</Product>
+    <Description>Status Guard</Description>
     <Company>introVRt Lounge</Company>
     <Version>0.1.0</Version>
   </PropertyGroup>

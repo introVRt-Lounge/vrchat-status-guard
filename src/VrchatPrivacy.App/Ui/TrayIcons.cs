@@ -19,7 +19,7 @@ internal static class TrayIcons
         ProtectionAppState.Working => Working,
         ProtectionAppState.Paused => Paused,
         ProtectionAppState.Failed => Failed,
-        ProtectionAppState.Disconnected => Failed,
+        ProtectionAppState.Disconnected => Idle,
         ProtectionAppState.AwaitingLogin => AwaitingLogin,
         _ => Idle,
     };

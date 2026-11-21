@@ -4,7 +4,7 @@ public sealed class WhatsNewForm : Form
 {
     public WhatsNewForm(ReleaseNotes notes)
     {
-        Text = "What's New - VRChat Status Guard";
+        Text = "What's New - Status Guard";
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(480, 360);
         Size = new Size(560, 480);

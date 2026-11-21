@@ -53,7 +53,9 @@ public sealed class VrchatLogDirectoryWatcher : IVrchatLogWatcher, IDisposable
             }
         };
 
-        SwitchToNewest(scanExisting: true);
+        // Seek to EOF only. Orchestrator does a single GetCurrentWorldAsync catch-up;
+        // do not replay historical joins or double-emit current world.
+        SwitchToNewest(seekToEnd: true);
         _pollTimer = new Timer(_ => ReadNewLines(), null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
         return Task.CompletedTask;
     }
@@ -100,7 +102,7 @@ public sealed class VrchatLogDirectoryWatcher : IVrchatLogWatcher, IDisposable
         StopAsync().GetAwaiter().GetResult();
     }
 
-    private void SwitchToNewest(bool scanExisting = false)
+    private void SwitchToNewest(bool seekToEnd = false)
     {
         lock (_gate)
         {
@@ -110,22 +112,20 @@ public sealed class VrchatLogDirectoryWatcher : IVrchatLogWatcher, IDisposable
                 return;
             }
 
-            if (!string.Equals(newest, _activePath, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(newest, _activePath, StringComparison.OrdinalIgnoreCase) || seekToEnd)
             {
                 _activePath = newest;
-                _position = scanExisting ? 0 : new FileInfo(newest).Length;
+                // Always open at EOF. Never set position=0 and Replay the whole
+                // output_log - that flooded Activity + re-applied status on every
+                // Status Guard relaunch while the operator sat idle in Home (#56).
+                _position = new FileInfo(newest).Length;
             }
         }
 
-        if (scanExisting)
+        if (seekToEnd)
         {
-            _ = GetCurrentWorldAsync().ContinueWith(t =>
-            {
-                if (t.Status == TaskStatus.RanToCompletion && t.Result is { } join)
-                {
-                    WorldJoined?.Invoke(this, join);
-                }
-            }, TaskScheduler.Default);
+            // First open: nothing to read yet; poll / Changed tails new lines.
+            return;
         }
 
         ReadNewLines();
