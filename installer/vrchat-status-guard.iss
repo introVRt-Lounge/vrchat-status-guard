@@ -2,7 +2,9 @@
 ; Expects self-contained publish output in ..\artifacts\publish\
 
 #define MyAppName "VRChat Status Guard"
-#define MyAppVersion "0.1.0"
+#ifndef MyAppVersion
+  #define MyAppVersion "0.1.0"
+#endif
 #define MyAppPublisher "introVRt Lounge"
 #define MyAppExeName "VrchatPrivacy.App.exe"
 #ifndef PublishDir
