@@ -15,7 +15,7 @@ public sealed class AboutForm : Form
     {
         _activity = activity;
         _catalog = catalog;
-        Text = "About - VRChat Status Guard";
+        Text = "About - Status Guard";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -62,14 +62,14 @@ public sealed class AboutForm : Form
             });
         }
 
-        stack.Controls.Add(DpiUtil.AutoLabel("VRChat Status Guard", VrcTheme.TitleFont, VrcTheme.TextPrimary));
+        stack.Controls.Add(DpiUtil.AutoLabel("Status Guard", VrcTheme.TitleFont, VrcTheme.TextPrimary));
         stack.Controls.Add(DpiUtil.AutoLabel(
             $"Version {AppUpdateService.CurrentVersion}",
             VrcTheme.SmallFont,
             VrcTheme.TextMuted));
         stack.Controls.Add(Spacer(8));
         stack.Controls.Add(DpiUtil.AutoLabel(
-            "Do you like to party? Do you also like to chill? We keep your public public and your private private - automatically.",
+            "Do you like to party? Do you also like to chill? Status Guard asks the API to keep your private private - when VRChat's client listens.",
             VrcTheme.BodyFont,
             VrcTheme.TextPrimary,
             maxWidth: 460));
@@ -87,9 +87,15 @@ public sealed class AboutForm : Form
         stack.Controls.Add(LinkRow("GitHub org", LoungeLinks.GitHubOrg));
 
         stack.Controls.Add(Spacer(16));
-        stack.Controls.Add(Section("Limitations (API rate budget)"));
+        stack.Controls.Add(Section("Honest limitations"));
         stack.Controls.Add(DpiUtil.AutoLabel(
-            "VRChat staff (via Tupper) say third-party apps must not query the unofficial API more than once per 60 seconds. Abuse can terminate accounts. Status Guard enforces that as a hard mutation budget.",
+            "API status writes often do not update the live game client. Friends can still see Join Me after we set Ask Me. Until VRChat fixes that, mileage will vary - do not rely on this alone for privacy. Braces without a belt.",
+            VrcTheme.BodyFont,
+            VrcTheme.TextPrimary,
+            maxWidth: 460));
+        stack.Controls.Add(LinkRow("VRChat feedback (status desync)", LoungeLinks.VrchatStatusApiDesync));
+        stack.Controls.Add(DpiUtil.AutoLabel(
+            "Platform guidance (via Tupper) says third-party apps must not query the unofficial API more than once per 60 seconds. Abuse can terminate accounts. Status Guard enforces that as a hard mutation budget.",
             VrcTheme.BodyFont,
             VrcTheme.TextPrimary,
             maxWidth: 460));

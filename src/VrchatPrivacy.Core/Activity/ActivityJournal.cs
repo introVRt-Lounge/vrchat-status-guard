@@ -87,21 +87,25 @@ public sealed class ActivityJournal
     public void RecordGroupApplied(
         string worldId,
         string? worldName,
-        string? thumbnailUrl,
         ProtectionStatus status,
-        string groupId)
+        string groupId,
+        string? groupName = null,
+        string? groupIconUrl = null)
     {
-        var name = string.IsNullOrWhiteSpace(worldName) ? ShortWorld(worldId) : worldName!;
+        var worldLabel = string.IsNullOrWhiteSpace(worldName) ? ShortWorld(worldId) : worldName!;
+        var groupLabel = string.IsNullOrWhiteSpace(groupName) ? groupId : groupName!;
         Record(new ActivityEntry(
             DateTimeOffset.Now,
             FeedKind.GroupApplied,
-            "Group representation updated",
-            $"{name} · repping {groupId}",
+            $"Repping {groupLabel}",
+            $"In {worldLabel}",
             worldId,
             worldName,
-            thumbnailUrl,
+            ThumbnailImageUrl: null,
             status,
-            groupId));
+            groupId,
+            groupName,
+            groupIconUrl));
     }
 
     public void RecordPaused() =>
@@ -192,23 +196,41 @@ public sealed class ActivityJournal
 
         try
         {
+            var skipped = 0;
             foreach (var line in File.ReadLines(_path!))
             {
-                if (string.IsNullOrWhiteSpace(line))
+                if (string.IsNullOrWhiteSpace(line) || line.IndexOf('\0') >= 0)
                 {
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        skipped++;
+                    }
+
                     continue;
                 }
 
-                var entry = JsonSerializer.Deserialize<ActivityEntry>(line, JsonOptions);
-                if (entry is not null)
+                try
                 {
-                    _entries.Add(entry);
+                    var entry = JsonSerializer.Deserialize<ActivityEntry>(line, JsonOptions);
+                    if (entry is not null)
+                    {
+                        _entries.Add(entry);
+                    }
+                }
+                catch (JsonException)
+                {
+                    skipped++;
                 }
             }
 
             while (_entries.Count > MaxKept)
             {
                 _entries.RemoveAt(0);
+            }
+
+            if (skipped > 0)
+            {
+                AppLog.Warn($"ActivityJournal skipped {skipped} corrupt line(s) on load.");
             }
         }
         catch (Exception ex)

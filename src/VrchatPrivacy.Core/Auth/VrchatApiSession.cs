@@ -203,6 +203,24 @@ public sealed class VrchatApiSession : IVrchatSession, IDisposable
         }
     }
 
+    public async Task LogoutAsync(CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            AppLog.Info("Logout: clearing session");
+            _client = null;
+            _userId = null;
+            _displayName = null;
+            await _store.ClearAsync(cancellationToken).ConfigureAwait(false);
+            AppLog.Info("Logout: auth.bin cleared");
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task<SessionSnapshot> GetCurrentUserAsync(CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -230,22 +248,41 @@ public sealed class VrchatApiSession : IVrchatSession, IDisposable
         try
         {
             EnsureClient();
-            if (string.IsNullOrEmpty(_userId))
-            {
-                var user = await RequireCurrentUserAsync(cancellationToken).ConfigureAwait(false);
-                _userId = user.Id;
-            }
+            var user = await RequireCurrentUserAsync(cancellationToken).ConfigureAwait(false);
+            _userId = user.Id;
+            var before = MapStatusToApi(user.Status);
 
             var apiStatus = ProtectionStatusMapping.ToApiStatus(status);
-            AppLog.Info($"ApplyStatus: {_userId} -> {apiStatus}");
+            // Nudge statusDescription with a zero-width space toggle so the PUT carries a
+            // field change without clobbering the user's visible status text. The running
+            // VRChat client often ignores REST status alone (#62 / VRChat Canny).
+            var description = NudgeStatusDescription(user.StatusDescription);
+            AppLog.Info($"ApplyStatus: {_userId} {before} -> {apiStatus}");
             var request = new UpdateUserRequest
             {
                 Status = ParseUserStatus(apiStatus),
+                StatusDescription = description,
             };
 
-            await _client!.Users.UpdateUserAsync(_userId!, request, cancellationToken).ConfigureAwait(false);
+            var http = await _client!.Users
+                .UpdateUserWithHttpInfoAsync(_userId!, request, cancellationToken)
+                .ConfigureAwait(false);
             _lastMutationUtc = DateTimeOffset.UtcNow;
-            AppLog.Info("ApplyStatus: ok");
+
+            var verified = await RequireCurrentUserAsync(cancellationToken).ConfigureAwait(false);
+            var after = MapStatusToApi(verified.Status);
+            if (!string.Equals(after, apiStatus, StringComparison.OrdinalIgnoreCase))
+            {
+                AppLog.Error(
+                    $"ApplyStatus: API mismatch after PUT HTTP {(int)http.StatusCode}: wanted {apiStatus}, got {after}");
+                throw new InvalidOperationException(
+                    $"VRChat API did not keep status '{apiStatus}' (still '{after}').");
+            }
+
+            AppLog.Info($"ApplyStatus: verified API={after} HTTP={(int)http.StatusCode}");
+            AppLog.Warn(
+                "ApplyStatus: API matches target, but the VRChat GAME CLIENT may still show the old colour. " +
+                "Privacy is NOT confirmed until Quick Menu status matches. Known VRChat platform bug (#62).");
         }
         catch (Exception ex)
         {
@@ -256,6 +293,13 @@ public sealed class VrchatApiSession : IVrchatSession, IDisposable
         {
             _gate.Release();
         }
+    }
+
+    private static string NudgeStatusDescription(string? current)
+    {
+        const char zwsp = '\u200B';
+        var text = current ?? string.Empty;
+        return text.EndsWith(zwsp) ? text.TrimEnd(zwsp) : text + zwsp;
     }
 
     public async Task<IReadOnlyList<WorldInfo>> GetRecentWorldsAsync(int count = 20, CancellationToken cancellationToken = default)

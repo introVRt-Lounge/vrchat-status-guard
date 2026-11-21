@@ -54,7 +54,7 @@ vpk pack `
     --packVersion $Version `
     --packDir $publishDir `
     --mainExe VrchatPrivacy.App.exe `
-    --packTitle "VRChat Status Guard" `
+    --packTitle "Status Guard" `
     --runtime win-x64 `
     --outputDir $velopackOut
 
@@ -63,3 +63,4 @@ if ($LASTEXITCODE -ne 0) { throw "vpk pack failed ($LASTEXITCODE)" }
 Get-ChildItem $velopackOut | ForEach-Object {
     Write-Host "Built $($_.FullName) ($([math]::Round($_.Length/1MB,1)) MB)"
 }
+

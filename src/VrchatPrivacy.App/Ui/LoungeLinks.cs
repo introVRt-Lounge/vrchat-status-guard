@@ -18,4 +18,6 @@ public static class LoungeLinks
     /// </summary>
     public const string VrchatApiCsharpDisclaimer = "https://github.com/vrchatapi/vrchatapi-csharp";
     public const string VrchatApiSpecification = "https://github.com/vrchatapi/specification";
+    public const string VrchatStatusApiDesync =
+        "https://feedback.vrchat.com/open-beta/p/vrc-rest-api-websocket-issues-since-years-status-and-avatar-changes-are-extremel";
 }

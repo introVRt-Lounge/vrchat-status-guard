@@ -10,6 +10,10 @@ namespace VrchatPrivacy.App;
 /// <summary>Basic (pretty) + Debug (raw guard.log) activity views.</summary>
 public sealed class ActivityLogForm : Form
 {
+    private const int WorldThumbW = 160;
+    private const int WorldThumbH = 90;
+    private const int GroupIconSize = 72;
+
     private readonly ActivityJournal _journal;
     private readonly HubCatalog? _catalog;
     private readonly Panel _basicHost;
@@ -20,22 +24,17 @@ public sealed class ActivityLogForm : Form
     private readonly RadioButton _debugRadio;
     private readonly CheckBox _follow;
     private readonly System.Windows.Forms.Timer _timer;
-    private readonly int _thumbW;
-    private readonly int _thumbH;
+    private readonly List<string> _renderedKeys = new();
     private string _lastDebug = string.Empty;
-    private string _lastBasicFingerprint = string.Empty;
     private int _enrichGeneration;
-    private bool _rebuildingBasic;
+    private bool _layoutGuard;
 
     public ActivityLogForm(ActivityJournal journal, HubCatalog? catalog = null)
     {
         _journal = journal;
         _catalog = catalog;
-        // Match HubCatalog warmup size (160x90) so thumbs hit the shared image cache.
-        _thumbW = 160;
-        _thumbH = 90;
 
-        Text = "Activity - VRChat Status Guard";
+        Text = "Activity - Status Guard";
         FormBorderStyle = FormBorderStyle.Sizable;
         MinimizeBox = true;
         MaximizeBox = true;
@@ -116,12 +115,12 @@ public sealed class ActivityLogForm : Form
         _basicHost.Controls.Add(_cards);
         _basicHost.Resize += (_, _) =>
         {
-            if (_rebuildingBasic)
+            if (_layoutGuard)
             {
                 return;
             }
 
-            var w = Math.Max(280, _basicHost.ClientSize.Width - 24);
+            var w = CardWidth();
             foreach (Control c in _cards.Controls)
             {
                 if (c.Width != w)
@@ -161,7 +160,7 @@ public sealed class ActivityLogForm : Form
         VrcTheme.StyleGhostButton(reload);
         reload.Click += (_, _) =>
         {
-            _lastBasicFingerprint = string.Empty;
+            _renderedKeys.Clear();
             _lastDebug = string.Empty;
             RefreshAll(force: true);
         };
@@ -193,16 +192,13 @@ public sealed class ActivityLogForm : Form
         AcceptButton = close;
         CancelButton = close;
 
-        // Debug may grow without events; Basic is event-driven (no destructive poll).
         _timer = new System.Windows.Forms.Timer { Interval = 2500 };
         _timer.Tick += (_, _) =>
         {
-            if (!_follow.Checked || !_debugRadio.Checked)
+            if (_follow.Checked && _debugRadio.Checked)
             {
-                return;
+                RefreshDebug();
             }
-
-            RefreshDebug();
         };
 
         _journal.Changed += OnJournalChanged;
@@ -291,19 +287,56 @@ public sealed class ActivityLogForm : Form
     private void RefreshBasic(bool force)
     {
         var entries = _journal.ReadRecent(60);
-        var fingerprint = Fingerprint(entries);
-        if (!force && fingerprint == _lastBasicFingerprint)
+        var newestFirst = entries.Reverse().ToList();
+        var keys = newestFirst.Select(EntryKey).ToList();
+
+        if (!force && keys.Count == _renderedKeys.Count && keys.SequenceEqual(_renderedKeys))
         {
             return;
         }
 
-        _lastBasicFingerprint = fingerprint;
-        _rebuildingBasic = true;
+        // Incremental: only new items on top (existing cards stay put).
+        if (!force &&
+            _renderedKeys.Count > 0 &&
+            keys.Count > _renderedKeys.Count)
+        {
+            var suffixStart = keys.Count - _renderedKeys.Count;
+            if (keys.Skip(suffixStart).SequenceEqual(_renderedKeys))
+            {
+                // Remove empty-state label if present.
+                foreach (Control c in _cards.Controls.Cast<Control>().ToList())
+                {
+                    if (c is Label)
+                    {
+                        _cards.Controls.Remove(c);
+                        c.Dispose();
+                    }
+                }
+
+                var newCards = new List<Control>();
+                for (var i = suffixStart - 1; i >= 0; i--)
+                {
+                    var card = BuildCard(newestFirst[i]);
+                    _cards.Controls.Add(card);
+                    _cards.Controls.SetChildIndex(card, 0);
+                    newCards.Add(card);
+                }
+
+                _renderedKeys.Clear();
+                _renderedKeys.AddRange(keys);
+                var gen = Interlocked.Increment(ref _enrichGeneration);
+                _ = FillThumbsInPlaceAsync(gen, newCards);
+                return;
+            }
+        }
+
+        // Full rebuild (first open / Reload / history changed).
+        _layoutGuard = true;
         _cards.SuspendLayout();
         try
         {
             _cards.Controls.Clear();
-            if (entries.Count == 0)
+            if (newestFirst.Count == 0)
             {
                 _cards.Controls.Add(DpiUtil.AutoLabel(
                     "Nothing yet. Enter a protected world and Status Guard will show what it did here.",
@@ -313,7 +346,7 @@ public sealed class ActivityLogForm : Form
             }
             else
             {
-                foreach (var entry in entries.Reverse())
+                foreach (var entry in newestFirst)
                 {
                     _cards.Controls.Add(BuildCard(entry));
                 }
@@ -322,58 +355,62 @@ public sealed class ActivityLogForm : Form
         finally
         {
             _cards.ResumeLayout(true);
-            _rebuildingBasic = false;
+            _layoutGuard = false;
         }
 
-        var gen = Interlocked.Increment(ref _enrichGeneration);
-        _ = FillThumbsInPlaceAsync(gen);
+        _renderedKeys.Clear();
+        _renderedKeys.AddRange(keys);
+        var g2 = Interlocked.Increment(ref _enrichGeneration);
+        _ = FillThumbsInPlaceAsync(g2, _cards.Controls.OfType<Control>().ToList());
     }
 
-    private static string Fingerprint(IReadOnlyList<ActivityEntry> entries)
-    {
-        if (entries.Count == 0)
-        {
-            return "0";
-        }
+    private static string EntryKey(ActivityEntry e) =>
+        $"{e.At.UtcTicks}|{e.Kind}|{e.WorldId}|{e.GroupId}|{e.Title}";
 
-        var last = entries[^1];
-        return $"{entries.Count}|{last.At.UtcTicks}|{last.Kind}|{last.WorldId}|{last.Title}";
-    }
+    private int CardWidth() => Math.Max(280, _basicHost.ClientSize.Width - 24);
 
     private Control BuildCard(ActivityEntry entry)
     {
         var cachedWorld = !string.IsNullOrWhiteSpace(entry.WorldId)
             ? _catalog?.Worlds.TryGetCached(entry.WorldId!)
             : null;
-        var worldName = !string.IsNullOrWhiteSpace(entry.WorldName)
-            ? entry.WorldName!
-            : cachedWorld?.Name;
-        var thumbUrl = entry.ThumbnailImageUrl ?? cachedWorld?.ThumbnailImageUrl;
+        var group = !string.IsNullOrWhiteSpace(entry.GroupId)
+            ? _catalog?.FindGroup(entry.GroupId)
+            : null;
+
+        var worldName = FirstNonEmpty(entry.WorldName, cachedWorld?.Name);
+        var groupName = FirstNonEmpty(entry.GroupName, group?.Name, group?.HeaderLabel);
+        var isGroup = entry.Kind == FeedKind.GroupApplied;
+        var imageUrl = isGroup
+            ? FirstNonEmpty(entry.GroupIconUrl, group?.IconUrl, group?.BannerUrl)
+            : FirstNonEmpty(entry.ThumbnailImageUrl, cachedWorld?.ThumbnailImageUrl);
+
         var titleText = entry.Kind switch
         {
-            FeedKind.ProtectedWorldEntered when !string.IsNullOrWhiteSpace(worldName)
-                => $"Entered {worldName}",
-            FeedKind.StatusApplied when entry.Status is { } st
-                => $"Status → {ProtectionStatusMapping.ToUserLabel(st)}",
+            FeedKind.ProtectedWorldEntered when worldName is not null => $"Entered {worldName}",
+            FeedKind.StatusApplied => "Status updated",
+            FeedKind.GroupApplied when groupName is not null => $"Repping {groupName}",
+            FeedKind.GroupApplied => entry.Title,
             _ => entry.Title,
         };
         var detailText = entry.Kind switch
         {
-            FeedKind.StatusApplied when !string.IsNullOrWhiteSpace(worldName)
-                => $"Protected world: {worldName}",
-            FeedKind.GroupApplied when !string.IsNullOrWhiteSpace(worldName)
-                => $"{worldName} · group updated",
+            FeedKind.ProtectedWorldEntered when entry.Status is not null =>
+                "Target status queued for this world.",
+            FeedKind.StatusApplied when worldName is not null => $"In {worldName}",
+            FeedKind.GroupApplied when worldName is not null => $"In {worldName}",
             _ => entry.Detail,
         };
 
-        var width = Math.Max(280, _basicHost.ClientSize.Width - 24);
+        var imgW = isGroup ? GroupIconSize : WorldThumbW;
+        var imgH = isGroup ? GroupIconSize : WorldThumbH;
+        var width = CardWidth();
         var card = new Panel
         {
             Width = width,
-            Height = DpiUtil.Scale(this, 88),
+            Height = DpiUtil.Scale(this, 96),
             Margin = new Padding(0, 0, 0, 10),
             BackColor = VrcTheme.BgPanel,
-            Padding = DpiUtil.Scale(this, 10, 8, 10, 8),
             Tag = entry,
         };
         card.Paint += (_, e) =>
@@ -386,28 +423,30 @@ public sealed class ActivityLogForm : Form
         };
 
         var showThumb = entry.Kind is not (FeedKind.Paused or FeedKind.Resumed);
+        var pad = DpiUtil.Scale(this, 14);
         var pic = new PictureBox
         {
             Name = "thumb",
-            Size = new Size(_thumbW, _thumbH),
-            Location = new Point(DpiUtil.Scale(this, 14), DpiUtil.Scale(this, 12)),
+            Size = new Size(imgW, imgH),
+            Location = new Point(pad, DpiUtil.Scale(this, 12)),
             SizeMode = PictureBoxSizeMode.Zoom,
             BackColor = VrcTheme.BgElevated,
             Visible = showThumb,
-            Tag = new ThumbTag(entry.WorldId, thumbUrl),
+            Tag = new ThumbTag(entry.Kind, entry.WorldId, entry.GroupId, imageUrl, imgW, imgH),
         };
-        if (showThumb && !string.IsNullOrWhiteSpace(thumbUrl) && _catalog is not null)
+        if (showThumb && !string.IsNullOrWhiteSpace(imageUrl) && _catalog is not null)
         {
-            var cached = _catalog.TryGetCachedImage(thumbUrl, _thumbW, _thumbH);
+            var cached = _catalog.TryGetCachedImage(imageUrl, imgW, imgH);
             if (cached is not null)
             {
-                pic.Image = cached;
+                pic.Image = new Bitmap(cached);
             }
         }
 
-        var textLeft = showThumb ? pic.Right + DpiUtil.Scale(this, 12) : DpiUtil.Scale(this, 16);
-        var textWidth = Math.Max(120, width - textLeft - DpiUtil.Scale(this, 12));
-        var when = entry.At.ToLocalTime().ToString("ddd HH:mm:ss");
+        var textLeft = showThumb ? pic.Right + DpiUtil.Scale(this, 12) : pad;
+        var textWidth = Math.Max(120, width - textLeft - pad);
+        var y = DpiUtil.Scale(this, 10);
+
         var title = new Label
         {
             Name = "title",
@@ -415,9 +454,21 @@ public sealed class ActivityLogForm : Form
             Text = titleText,
             Font = VrcTheme.HeadingFont,
             ForeColor = VrcTheme.TextPrimary,
-            Location = new Point(textLeft, DpiUtil.Scale(this, 10)),
-            Size = new Size(textWidth, DpiUtil.Scale(this, 24)),
+            Location = new Point(textLeft, y),
+            Size = new Size(textWidth, DpiUtil.Scale(this, 22)),
         };
+        y += DpiUtil.Scale(this, 24);
+
+        // Status chip for status-related rows (not just the word "Blue").
+        Panel? chip = null;
+        if (entry.Status is { } status &&
+            entry.Kind is FeedKind.StatusApplied or FeedKind.ProtectedWorldEntered)
+        {
+            chip = BuildStatusChip(status);
+            chip.Location = new Point(textLeft, y);
+            y += chip.Height + DpiUtil.Scale(this, 6);
+        }
+
         var detail = new Label
         {
             Name = "detail",
@@ -425,68 +476,187 @@ public sealed class ActivityLogForm : Form
             Text = detailText,
             Font = VrcTheme.BodyFont,
             ForeColor = VrcTheme.TextMuted,
-            Location = new Point(textLeft, DpiUtil.Scale(this, 36)),
-            Size = new Size(textWidth, DpiUtil.Scale(this, 22)),
+            Location = new Point(textLeft, y),
+            Size = new Size(textWidth, DpiUtil.Scale(this, 20)),
         };
+        y += DpiUtil.Scale(this, 22);
+
         var time = new Label
         {
             AutoSize = false,
-            Text = when,
+            Text = entry.At.ToLocalTime().ToString("ddd HH:mm:ss"),
             Font = VrcTheme.SmallFont,
             ForeColor = VrcTheme.TextMuted,
-            Location = new Point(textLeft, DpiUtil.Scale(this, 60)),
+            Location = new Point(textLeft, y),
             Size = new Size(textWidth, DpiUtil.Scale(this, 18)),
         };
 
         card.Controls.Add(pic);
         card.Controls.Add(title);
+        if (chip is not null)
+        {
+            card.Controls.Add(chip);
+        }
+
         card.Controls.Add(detail);
         card.Controls.Add(time);
+
+        var needed = Math.Max(pic.Visible ? pic.Bottom + DpiUtil.Scale(this, 12) : 0, time.Bottom + DpiUtil.Scale(this, 10));
+        card.Height = Math.Max(DpiUtil.Scale(this, 88), needed);
         return card;
     }
 
-    private async Task FillThumbsInPlaceAsync(int generation)
+    private Panel BuildStatusChip(ProtectionStatus status)
+    {
+        var color = VrcTheme.ForStatus(status);
+        var label = StatusUx.ShortName(status);
+        var h = DpiUtil.Scale(this, 26);
+        var textSize = TextRenderer.MeasureText(label, VrcTheme.SmallFont);
+        var width = DpiUtil.Scale(this, 28) + textSize.Width;
+
+        var chip = new Panel
+        {
+            Name = "statusChip",
+            AutoSize = false,
+            Size = new Size(width, h),
+            BackColor = Color.Transparent,
+        };
+        chip.Paint += (_, e) =>
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+            var fill = Color.FromArgb(55, color);
+            using var path = Capsule(new Rectangle(0, 0, chip.Width - 1, chip.Height - 1));
+            using (var brush = new SolidBrush(fill))
+            {
+                g.FillPath(brush, path);
+            }
+
+            using (var pen = new Pen(color, 1.5f))
+            {
+                g.DrawPath(pen, path);
+            }
+
+            var dotR = DpiUtil.Scale(this, 5);
+            var dotX = DpiUtil.Scale(this, 10);
+            var dotY = (chip.Height - dotR * 2) / 2;
+            using (var brush = new SolidBrush(color))
+            {
+                g.FillEllipse(brush, dotX, dotY, dotR * 2, dotR * 2);
+            }
+
+            var textX = DpiUtil.Scale(this, 24);
+            var textY = (chip.Height - textSize.Height) / 2;
+            TextRenderer.DrawText(
+                g,
+                label,
+                VrcTheme.SmallFont,
+                new Point(textX, textY),
+                VrcTheme.TextPrimary,
+                TextFormatFlags.NoPadding);
+        };
+
+        return chip;
+    }
+
+    private static System.Drawing.Drawing2D.GraphicsPath Capsule(Rectangle bounds)
+    {
+        var path = new System.Drawing.Drawing2D.GraphicsPath();
+        var d = Math.Min(bounds.Width, bounds.Height);
+        if (d <= 0)
+        {
+            path.AddRectangle(bounds);
+            return path;
+        }
+
+        path.AddArc(bounds.X, bounds.Y, d, d, 90, 180);
+        path.AddArc(bounds.Right - d, bounds.Y, d, d, 270, 180);
+        path.CloseFigure();
+        return path;
+    }
+
+    private async Task FillThumbsInPlaceAsync(int generation, IReadOnlyList<Control> cards)
     {
         if (_catalog is null)
         {
             return;
         }
 
-        // Snapshot cards so we do not rebuild while filling.
-        var cards = _cards.Controls.OfType<Panel>().ToList();
-        foreach (var card in cards)
+        foreach (var control in cards)
         {
             if (generation != _enrichGeneration || IsDisposed)
             {
                 return;
             }
 
-            var pic = card.Controls.Find("thumb", false).OfType<PictureBox>().FirstOrDefault();
-            var title = card.Controls.Find("title", false).OfType<Label>().FirstOrDefault();
-            var detail = card.Controls.Find("detail", false).OfType<Label>().FirstOrDefault();
-            if (pic is null || !pic.Visible || pic.Tag is not ThumbTag thumbTag)
+            if (control is not Panel card)
             {
                 continue;
             }
 
-            var worldId = thumbTag.WorldId;
-            var url = thumbTag.Url;
+            var pic = card.Controls.Find("thumb", false).OfType<PictureBox>().FirstOrDefault();
+            var title = card.Controls.Find("title", false).OfType<Label>().FirstOrDefault();
+            var detail = card.Controls.Find("detail", false).OfType<Label>().FirstOrDefault();
+            if (pic is null || !pic.Visible || pic.Tag is not ThumbTag tag)
+            {
+                continue;
+            }
 
-            if (string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(worldId))
+            var url = tag.Url;
+            if (tag.Kind == FeedKind.GroupApplied)
+            {
+                if (string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(tag.GroupId))
+                {
+                    var g = _catalog.FindGroup(tag.GroupId);
+                    if (g is null)
+                    {
+                        try
+                        {
+                            await _catalog.WarmupAsync(force: false).ConfigureAwait(true);
+                        }
+                        catch
+                        {
+                            // ignore
+                        }
+
+                        g = _catalog.FindGroup(tag.GroupId);
+                    }
+
+                    if (g is not null)
+                    {
+                        url = g.IconUrl ?? g.BannerUrl;
+                        pic.Tag = tag with { Url = url };
+                        if (title is not null && !string.IsNullOrWhiteSpace(g.Name))
+                        {
+                            title.Text = $"Repping {g.Name}";
+                        }
+                    }
+                }
+            }
+            else if (string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(tag.WorldId))
             {
                 try
                 {
-                    var info = await _catalog.Worlds.GetAsync(worldId).ConfigureAwait(true);
+                    var info = await _catalog.Worlds.GetAsync(tag.WorldId).ConfigureAwait(true);
                     if (generation != _enrichGeneration || IsDisposed)
                     {
                         return;
                     }
 
                     url = info.ThumbnailImageUrl;
-                    pic.Tag = new ThumbTag(worldId, url);
+                    pic.Tag = tag with { Url = url };
                     if (card.Tag is ActivityEntry entry)
                     {
-                        PatchCardText(title, detail, entry, info.Name);
+                        if (title is not null && entry.Kind == FeedKind.ProtectedWorldEntered)
+                        {
+                            title.Text = $"Entered {info.Name}";
+                        }
+
+                        if (detail is not null && entry.Kind == FeedKind.StatusApplied)
+                        {
+                            detail.Text = $"In {info.Name}";
+                        }
                     }
                 }
                 catch
@@ -495,63 +665,25 @@ public sealed class ActivityLogForm : Form
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(url))
-            {
-                continue;
-            }
-
-            if (pic.Image is not null)
+            if (string.IsNullOrWhiteSpace(url) || pic.Image is not null)
             {
                 continue;
             }
 
             try
             {
-                var img = await _catalog.GetImageAsync(url, _thumbW, _thumbH).ConfigureAwait(true);
+                var img = await _catalog.GetImageAsync(url, tag.Width, tag.Height).ConfigureAwait(true);
                 if (generation != _enrichGeneration || IsDisposed || pic.IsDisposed)
                 {
                     return;
                 }
 
-                // Copy so PictureBox owns a stable bitmap (avoids shared-cache glitches).
                 pic.Image = new Bitmap(img);
             }
             catch (Exception ex)
             {
-                VrchatPrivacy.Core.Logging.AppLog.Warn($"Activity thumb failed: {ex.Message}");
+                AppLog.Warn($"Activity thumb failed: {ex.Message}");
             }
-        }
-    }
-
-    private static void PatchCardText(Label? title, Label? detail, ActivityEntry entry, string? worldName)
-    {
-        if (string.IsNullOrWhiteSpace(worldName))
-        {
-            return;
-        }
-
-        if (title is not null)
-        {
-            title.Text = entry.Kind switch
-            {
-                FeedKind.ProtectedWorldEntered => $"Entered {worldName}",
-                FeedKind.StatusApplied when entry.Status is { } st
-                    => $"Status → {ProtectionStatusMapping.ToUserLabel(st)}",
-                FeedKind.GroupApplied => "Group representation updated",
-                _ => title.Text,
-            };
-        }
-
-        if (detail is not null)
-        {
-            detail.Text = entry.Kind switch
-            {
-                FeedKind.StatusApplied => $"Protected world: {worldName}",
-                FeedKind.GroupApplied => $"{worldName} · group updated",
-                FeedKind.ProtectedWorldEntered when entry.Status is { } st
-                    => $"Will set status to {ProtectionStatusMapping.ToUserLabel(st)}.",
-                _ => detail.Text,
-            };
         }
     }
 
@@ -574,6 +706,19 @@ public sealed class ActivityLogForm : Form
         }
     }
 
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var v in values)
+        {
+            if (!string.IsNullOrWhiteSpace(v))
+            {
+                return v;
+            }
+        }
+
+        return null;
+    }
+
     public static void ShowLog(IWin32Window? owner, ActivityJournal journal, HubCatalog? catalog = null)
     {
         using var form = new ActivityLogForm(journal, catalog);
@@ -587,5 +732,11 @@ public sealed class ActivityLogForm : Form
         }
     }
 
-    private sealed record ThumbTag(string? WorldId, string? Url);
+    private sealed record ThumbTag(
+        FeedKind Kind,
+        string? WorldId,
+        string? GroupId,
+        string? Url,
+        int Width,
+        int Height);
 }

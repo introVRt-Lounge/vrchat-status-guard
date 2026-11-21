@@ -10,9 +10,22 @@ namespace VrchatPrivacy.Core.Protection;
 public sealed class ProtectionAppliedEventArgs : EventArgs
 {
     public required string WorldId { get; init; }
+    public string? WorldName { get; init; }
     public required ProtectionStatus Status { get; init; }
     public string? RepresentGroupId { get; init; }
+    public string? RepresentGroupName { get; init; }
     public required string Summary { get; init; }
+
+    /// <summary>
+    /// True when this was a status mutation verified on the unofficial API.
+    /// The running VRChat client may still show a different colour (#62).
+    /// </summary>
+    public bool ApiStatusVerified { get; init; }
+
+    /// <summary>
+    /// True when the game process is running - in-game colour must be treated as unconfirmed.
+    /// </summary>
+    public bool ClientSyncUncertain { get; init; }
 }
 
 public sealed class ProtectionOrchestrator : IDisposable
@@ -22,6 +35,8 @@ public sealed class ProtectionOrchestrator : IDisposable
     private readonly AppSettingsStore _settingsStore;
     private readonly ActivityJournal _activity;
     private readonly WorldInfoLookup? _worlds;
+    private readonly IVrchatClientPresence _presence;
+    private readonly bool _ownsPresence;
     private readonly object _gate = new();
     private AppSettings _settings;
     private bool _paused;
@@ -44,13 +59,25 @@ public sealed class ProtectionOrchestrator : IDisposable
         IVrchatSession session,
         AppSettingsStore settingsStore,
         ActivityJournal? activity = null,
-        WorldInfoLookup? worlds = null)
+        WorldInfoLookup? worlds = null,
+        IVrchatClientPresence? presence = null)
     {
         _watcher = watcher;
         _session = session;
         _settingsStore = settingsStore;
         _activity = activity ?? new ActivityJournal();
         _worlds = worlds;
+        if (presence is null)
+        {
+            _presence = new VrchatProcessPresence();
+            _ownsPresence = true;
+        }
+        else
+        {
+            _presence = presence;
+            _ownsPresence = false;
+        }
+
         _settings = _settingsStore.Load();
         _paused = _settings.StartPaused;
     }
@@ -93,19 +120,25 @@ public sealed class ProtectionOrchestrator : IDisposable
             SetState(ProtectionAppState.AwaitingLogin, "Login required.");
         }
 
+        _presence.Changed += OnClientPresenceChanged;
+        _presence.Start();
+
         _watcher.WorldJoined += OnWorldJoined;
         await _watcher.StartAsync(cancellationToken).ConfigureAwait(false);
 
-        var current = await _watcher.GetCurrentWorldAsync(cancellationToken).ConfigureAwait(false);
-        if (current is not null)
+        if (!_presence.IsRunning)
         {
-            EnqueueJoin(current);
-            await DrainJoinsAsync(cancellationToken).ConfigureAwait(false);
+            HaltMutations("Client not running - mutations idle.");
+            return;
         }
+
+        await CatchUpCurrentWorldAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+        _presence.Changed -= OnClientPresenceChanged;
+        _presence.Stop();
         _watcher.WorldJoined -= OnWorldJoined;
         await _watcher.StopAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -119,19 +152,35 @@ public sealed class ProtectionOrchestrator : IDisposable
 
         if (paused)
         {
-            SetState(ProtectionAppState.Paused, "Protection paused.");
-            _activity.RecordPaused();
+            HaltMutations(_session.IsAuthenticated ? "Protection paused." : "Login required.");
+            if (_session.IsAuthenticated)
+            {
+                _activity.RecordPaused();
+                SetState(ProtectionAppState.Paused, "Protection paused.");
+            }
+            else
+            {
+                SetState(ProtectionAppState.AwaitingLogin, "Login required.");
+            }
+
+            return;
         }
-        else if (_session.IsAuthenticated)
-        {
-            SetState(ProtectionAppState.Working, "Protection resumed.");
-            _activity.RecordResumed();
-        }
-        else
+
+        _activity.RecordResumed();
+        if (!_session.IsAuthenticated)
         {
             SetState(ProtectionAppState.AwaitingLogin, "Login required.");
-            _activity.RecordResumed();
+            return;
         }
+
+        if (!_presence.IsRunning)
+        {
+            SetState(ProtectionAppState.Disconnected, "Client not running - mutations idle.");
+            return;
+        }
+
+        SetState(ProtectionAppState.Working, "Protection resumed.");
+        _ = CatchUpCurrentWorldAsync(CancellationToken.None);
     }
 
     public void ReloadSettings()
@@ -146,11 +195,19 @@ public sealed class ProtectionOrchestrator : IDisposable
 
     public void Dispose()
     {
+        _presence.Changed -= OnClientPresenceChanged;
+        _presence.Stop();
+        if (_ownsPresence)
+        {
+            _presence.Dispose();
+        }
+
         _watcher.WorldJoined -= OnWorldJoined;
         lock (_gate)
         {
             CancelAndDispose(ref _applyCts);
             CancelAndDispose(ref _repCts);
+            _pendingJoin = null;
             _pendingRepWorldId = null;
             _pendingRepGroupId = null;
             _pendingRepStatus = null;
@@ -162,8 +219,90 @@ public sealed class ProtectionOrchestrator : IDisposable
         }
     }
 
+    private void OnClientPresenceChanged(object? sender, bool running)
+    {
+        if (!running)
+        {
+            HaltMutations("Client not running - mutations idle.");
+            return;
+        }
+
+        bool paused;
+        lock (_gate)
+        {
+            paused = _paused;
+        }
+
+        if (paused || !_session.IsAuthenticated)
+        {
+            return;
+        }
+
+        SetState(ProtectionAppState.Working, "Client running - catching up.");
+        _ = CatchUpCurrentWorldAsync(CancellationToken.None);
+    }
+
+    /// <summary>Cancel in-flight status/repping and drop queues (#59).</summary>
+    private void HaltMutations(string reason)
+    {
+        lock (_gate)
+        {
+            _pendingJoin = null;
+            CancelPendingRep_NoLock();
+            TryCancel(_applyCts);
+            TryCancel(_repCts);
+        }
+
+        AppLog.Info($"Halt mutations: {reason}");
+        if (!_paused && _session.IsAuthenticated)
+        {
+            SetState(ProtectionAppState.Disconnected, reason);
+        }
+    }
+
+    private bool ClientAllowsMutations()
+    {
+        if (_presence.IsRunning)
+        {
+            return true;
+        }
+
+        HaltMutations("Client not running - mutations idle.");
+        return false;
+    }
+
+    private async Task CatchUpCurrentWorldAsync(CancellationToken cancellationToken)
+    {
+        if (!ClientAllowsMutations())
+        {
+            return;
+        }
+
+        var current = await _watcher.GetCurrentWorldAsync(cancellationToken).ConfigureAwait(false);
+        if (current is null)
+        {
+            return;
+        }
+
+        if (!ClientAllowsMutations())
+        {
+            return;
+        }
+
+        AppLog.Info($"CatchUp: {current.WorldId.Value}");
+        EnqueueJoin(current);
+        await DrainJoinsAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     private void OnWorldJoined(object? sender, WorldJoinEvent e)
     {
+        if (!_presence.IsRunning)
+        {
+            AppLog.Info($"Ignoring WorldJoined {e.WorldId.Value}; client not running.");
+            HaltMutations("Client not running - mutations idle.");
+            return;
+        }
+
         AppLog.Info($"WorldJoined: {e.WorldId.Value}");
         EnqueueJoin(e);
         _ = DrainJoinsAsync(CancellationToken.None);
@@ -232,6 +371,16 @@ public sealed class ProtectionOrchestrator : IDisposable
         {
             while (true)
             {
+                if (!ClientAllowsMutations())
+                {
+                    lock (_gate)
+                    {
+                        _pendingJoin = null;
+                    }
+
+                    break;
+                }
+
                 WorldJoinEvent? join;
                 lock (_gate)
                 {
@@ -258,7 +407,7 @@ public sealed class ProtectionOrchestrator : IDisposable
                 again = _pendingJoin is not null;
             }
 
-            if (again)
+            if (again && _presence.IsRunning)
             {
                 _ = DrainJoinsAsync(CancellationToken.None);
             }
@@ -267,6 +416,11 @@ public sealed class ProtectionOrchestrator : IDisposable
 
     private async Task HandleJoinCoreAsync(WorldJoinEvent join, CancellationToken cancellationToken)
     {
+        if (!ClientAllowsMutations())
+        {
+            return;
+        }
+
         bool paused;
         AppSettings settings;
         lock (_gate)
@@ -309,6 +463,11 @@ public sealed class ProtectionOrchestrator : IDisposable
             return;
         }
 
+        if (!ClientAllowsMutations())
+        {
+            return;
+        }
+
         CancellationTokenSource applyCts;
         lock (_gate)
         {
@@ -332,6 +491,11 @@ public sealed class ProtectionOrchestrator : IDisposable
             // Status is the privacy-critical path. Notify as soon as it lands; repping is deferred.
             if (statusChanged)
             {
+                if (!ClientAllowsMutations())
+                {
+                    return;
+                }
+
                 SetState(ProtectionAppState.Working, $"Applying {ProtectionStatusMapping.ToApiStatus(decision.TargetStatus.Value)}…");
                 await _session.ApplyProtectionStatusAsync(decision.TargetStatus.Value, applyCts.Token)
                     .ConfigureAwait(false);
@@ -342,11 +506,18 @@ public sealed class ProtectionOrchestrator : IDisposable
                     return;
                 }
 
+                if (!ClientAllowsMutations())
+                {
+                    AppLog.Info($"Aborting after status for {worldId}; client exited.");
+                    return;
+                }
+
                 _lastAppliedWorld = decision.WorldId;
                 _lastAppliedStatus = decision.TargetStatus;
 
                 var label = ProtectionStatusMapping.ToUserLabel(decision.TargetStatus.Value);
-                var msg = $"Applied {label} for {worldId}";
+                var worldLabel = string.IsNullOrWhiteSpace(worldInfo?.Name) ? worldId : worldInfo!.Name;
+                var msg = $"Applied {label} for {worldLabel}";
                 SetState(ProtectionAppState.Working, msg + ".");
                 _activity.RecordStatusApplied(
                     worldId,
@@ -356,9 +527,12 @@ public sealed class ProtectionOrchestrator : IDisposable
                 ProtectionApplied?.Invoke(this, new ProtectionAppliedEventArgs
                 {
                     WorldId = worldId,
+                    WorldName = worldInfo?.Name,
                     Status = decision.TargetStatus.Value,
                     RepresentGroupId = null,
                     Summary = msg,
+                    ApiStatusVerified = true,
+                    ClientSyncUncertain = _presence.IsRunning,
                 });
             }
             else
@@ -367,15 +541,22 @@ public sealed class ProtectionOrchestrator : IDisposable
                 _lastAppliedStatus = decision.TargetStatus;
             }
 
-            if (groupChanged)
+            if (groupChanged && ClientAllowsMutations())
             {
                 QueueRepping(worldId, representGroupId!, decision.TargetStatus.Value);
             }
         }
         catch (OperationCanceledException) when (HasPendingJoin() || applyCts.IsCancellationRequested)
         {
-            AppLog.Info($"Apply cancelled for {worldId} (superseded).");
-            SetState(ProtectionAppState.Working, "Superseded by newer world join.");
+            AppLog.Info($"Apply cancelled for {worldId}.");
+            if (!_presence.IsRunning)
+            {
+                SetState(ProtectionAppState.Disconnected, "Client not running - mutations idle.");
+            }
+            else
+            {
+                SetState(ProtectionAppState.Working, "Superseded by newer world join.");
+            }
         }
         catch (Exception ex)
         {
@@ -386,6 +567,12 @@ public sealed class ProtectionOrchestrator : IDisposable
 
     private void QueueRepping(string worldId, string groupId, ProtectionStatus status)
     {
+        if (!_presence.IsRunning)
+        {
+            AppLog.Info($"Not queueing repping {groupId}; client not running.");
+            return;
+        }
+
         lock (_gate)
         {
             _pendingRepWorldId = worldId;
@@ -415,6 +602,11 @@ public sealed class ProtectionOrchestrator : IDisposable
         {
             while (true)
             {
+                if (!ClientAllowsMutations())
+                {
+                    break;
+                }
+
                 string? worldId;
                 string? groupId;
                 ProtectionStatus? status;
@@ -448,31 +640,41 @@ public sealed class ProtectionOrchestrator : IDisposable
                     continue;
                 }
 
-                SetState(ProtectionAppState.Working, $"Representing group {groupId}…");
+                if (!ClientAllowsMutations())
+                {
+                    break;
+                }
+
+                var groupName = await TryGroupNameAsync(groupId, repCts.Token).ConfigureAwait(false);
+                var groupLabel = string.IsNullOrWhiteSpace(groupName) ? groupId : groupName!;
+                SetState(ProtectionAppState.Working, $"Representing {groupLabel}…");
                 try
                 {
                     await _session.SetRepresentingGroupAsync(groupId, repCts.Token).ConfigureAwait(false);
-                    if (HasPendingJoin() || repCts.IsCancellationRequested)
+                    if (HasPendingJoin() || repCts.IsCancellationRequested || !_presence.IsRunning)
                     {
-                        AppLog.Info($"Repping aborted for {groupId}; newer join pending.");
+                        AppLog.Info($"Repping aborted for {groupId}.");
                         break;
                     }
 
                     _lastAppliedRepresentGroupId = groupId;
-                    var msg = $"Repping {groupId} for {worldId}";
-                    SetState(ProtectionAppState.Working, msg + ".");
                     var worldInfo = TryWorldInfo(worldId);
+                    var worldLabel = string.IsNullOrWhiteSpace(worldInfo?.Name) ? worldId : worldInfo!.Name;
+                    var msg = $"Repping {groupLabel} in {worldLabel}";
+                    SetState(ProtectionAppState.Working, msg + ".");
                     _activity.RecordGroupApplied(
                         worldId,
                         worldInfo?.Name,
-                        worldInfo?.ThumbnailImageUrl,
                         status.Value,
-                        groupId);
+                        groupId,
+                        groupName);
                     ProtectionApplied?.Invoke(this, new ProtectionAppliedEventArgs
                     {
                         WorldId = worldId,
+                        WorldName = worldInfo?.Name,
                         Status = status.Value,
                         RepresentGroupId = groupId,
+                        RepresentGroupName = groupName,
                         Summary = msg,
                     });
                 }
@@ -499,7 +701,7 @@ public sealed class ProtectionOrchestrator : IDisposable
                 again = _pendingRepGroupId is not null;
             }
 
-            if (again && !HasPendingJoin())
+            if (again && !HasPendingJoin() && _presence.IsRunning)
             {
                 _ = DrainReppingAsync();
             }
@@ -519,4 +721,25 @@ public sealed class ProtectionOrchestrator : IDisposable
 
     private WorldInfo? TryWorldInfo(string worldId) =>
         _worlds?.TryGetCached(worldId);
+
+    private async Task<string?> TryGroupNameAsync(string groupId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var groups = await _session.GetUserGroupsAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var g in groups)
+            {
+                if (string.Equals(g.Id, groupId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return string.IsNullOrWhiteSpace(g.Name) ? g.HeaderLabel : g.Name;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn($"TryGroupName: failed for {groupId}: {ex.Message}");
+        }
+
+        return null;
+    }
 }

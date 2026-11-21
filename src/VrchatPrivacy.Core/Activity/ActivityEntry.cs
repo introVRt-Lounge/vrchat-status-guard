@@ -21,4 +21,6 @@ public sealed record ActivityEntry(
     string? WorldName,
     string? ThumbnailImageUrl,
     ProtectionStatus? Status,
-    string? GroupId);
+    string? GroupId,
+    string? GroupName = null,
+    string? GroupIconUrl = null);

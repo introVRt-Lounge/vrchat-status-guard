@@ -35,6 +35,19 @@ Before writing implementation code:
 
 If the operator describes substantive work but no issue exists, **create the issue first**, paste the URL back, then proceed.
 
+## Happy git place (session end / between tasks)
+
+Default resting state for this repo is **clean main only**. Before claiming idle, done, or handing off:
+
+1. **Branch:** `main`, tracking `origin/main`, up to date (`git pull --ff-only`).
+2. **Worktree:** no extra worktrees (`git worktree list` shows only this checkout). Remove leftovers with `git worktree remove`.
+3. **Working tree:** no uncommitted or untracked work you own for this session (commit+PR, stash only if operator asked, or discard only if operator said so).
+4. **PRs:** no open PRs left unmerged that this session created or was driving - merge (when green + operator OK) or close with reason.
+5. **Issues:** close GitHub issues this session actually finished (`Fixes #N` / `gh issue close`). Do not leave "done in code, open on GitHub."
+6. **Local branches:** delete merged topic branches locally and on origin after merge.
+
+**Not clean** = still on a feature branch, dirty tree, stray worktree, open PR, or finished work still filed as an open issue. Say so explicitly; then drive back to happy git place unless the operator parks the work.
+
 ## Design invariants
 
 - World **ID** matching only.

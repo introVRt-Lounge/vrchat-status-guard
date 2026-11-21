@@ -13,6 +13,7 @@ public sealed class TrayAppContext : ApplicationContext
     private readonly NotifyIcon _tray;
     private readonly ContextMenuStrip _menu;
     private readonly ToolStripMenuItem _statusItem;
+    private readonly ToolStripMenuItem _authItem;
     private readonly ToolStripMenuItem _pauseItem;
     private readonly AppSettingsStore _settingsStore;
     private readonly DpapiCredentialStore _credentialStore;
@@ -45,13 +46,15 @@ public sealed class TrayAppContext : ApplicationContext
         _orchestrator.ProtectionApplied += (_, e) => BeginInvoke(() => NotifyProtectionApplied(e));
 
         _statusItem = new ToolStripMenuItem("Status: starting…") { Enabled = false };
+        _authItem = new ToolStripMenuItem("Login…", null, async (_, _) => await OnAuthMenuClickAsync());
         _pauseItem = new ToolStripMenuItem("Pause protection", null, (_, _) => TogglePause());
 
         _menu = new ContextMenuStrip();
         _menu.Items.Add(_statusItem);
         _menu.Items.Add(new ToolStripSeparator());
-        _menu.Items.Add("Login…", null, async (_, _) => await LoginAsync());
+        _menu.Items.Add(_authItem);
         _menu.Items.Add("Apply status now", null, async (_, _) => await ForceApplyAsync());
+        _menu.Opening += (_, _) => RefreshAuthMenuItem();
         _menu.Items.Add(_pauseItem);
         _menu.Items.Add("Protection hub…", null, (_, _) => EditSettings());
         _menu.Items.Add(new ToolStripSeparator());
@@ -66,7 +69,7 @@ public sealed class TrayAppContext : ApplicationContext
 
         _tray = new NotifyIcon
         {
-            Text = "VRChat Status Guard",
+            Text = "Status Guard",
             // Clone SystemIcons - assigning them live often yields a blank tray glyph.
             Icon = TrayIcons.Default,
             // Keep ContextMenuStrip for right-click. Left single-click is MouseClick;
@@ -149,7 +152,7 @@ public sealed class TrayAppContext : ApplicationContext
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to start protection: {ex.Message}", "VRChat Status Guard", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show($"Failed to start protection: {ex.Message}", "Status Guard", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         BeginInvoke(UpdateTray);
@@ -194,7 +197,7 @@ public sealed class TrayAppContext : ApplicationContext
                 var open = MessageBox.Show(
                     "This copy was not installed via Setup.exe (dev run or side-by-side publish).\n\n" +
                     "Open GitHub Releases to download the installer?",
-                    "VRChat Status Guard",
+                    "Status Guard",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Information);
                 if (open == DialogResult.Yes)
@@ -210,7 +213,7 @@ public sealed class TrayAppContext : ApplicationContext
             {
                 MessageBox.Show(
                     $"You're on the latest build ({AppUpdateService.CurrentVersion}).",
-                    "VRChat Status Guard",
+                    "Status Guard",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
                 return;
@@ -219,7 +222,7 @@ public sealed class TrayAppContext : ApplicationContext
             var ver = update.TargetFullRelease?.Version?.ToString() ?? "new version";
             var go = MessageBox.Show(
                 $"Update to {ver} now? The app will download, restart, and apply.",
-                "VRChat Status Guard",
+                "Status Guard",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
             if (go != DialogResult.Yes)
@@ -233,7 +236,7 @@ public sealed class TrayAppContext : ApplicationContext
         {
             MessageBox.Show(
                 $"Update check failed: {ex.Message}",
-                "VRChat Status Guard",
+                "Status Guard",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
         }
@@ -251,7 +254,7 @@ public sealed class TrayAppContext : ApplicationContext
         {
             MessageBox.Show(
                 $"Could not load What's New: {ex.Message}",
-                "VRChat Status Guard",
+                "Status Guard",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
         }
@@ -297,6 +300,53 @@ public sealed class TrayAppContext : ApplicationContext
         {
             // Balloon tips can fail if the shell is busy; icon/tooltip still update.
         }
+    }
+
+    private async Task OnAuthMenuClickAsync()
+    {
+        if (_session.IsAuthenticated)
+        {
+            await LogoutAsync().ConfigureAwait(true);
+        }
+        else
+        {
+            await LoginAsync().ConfigureAwait(true);
+        }
+    }
+
+    private async Task LogoutAsync()
+    {
+        var confirm = MessageBox.Show(
+            "Log out of Status Guard? You will need to sign in again before protection can apply status.",
+            "Status Guard",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+        if (confirm != DialogResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            await _session.LogoutAsync().ConfigureAwait(true);
+            _orchestrator.SetPaused(true);
+            UpdateTray();
+            VrchatPrivacy.Core.Logging.AppLog.Info("Tray: logged out");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Logout failed: {ex.Message}",
+                "Status Guard",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            UpdateTray();
+        }
+    }
+
+    private void RefreshAuthMenuItem()
+    {
+        _authItem.Text = _session.IsAuthenticated ? "Logout…" : "Login…";
     }
 
     private async Task LoginAsync()
@@ -348,8 +398,8 @@ public sealed class TrayAppContext : ApplicationContext
         {
             VrchatPrivacy.Core.Logging.AppLog.Error("Login UI failed", ex);
             MessageBox.Show(
-                $"Login failed: {ex.GetType().Name}: {ex.Message}\n\nDetails: %LOCALAPPDATA%\\introVRt Lounge\\VRChat Status Guard\\guard.log",
-                "VRChat Status Guard",
+                $"Login failed: {ex.GetType().Name}: {ex.Message}\n\nDetails: tray → Activity log → Debug.",
+                "Status Guard",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
             UpdateTray();
@@ -370,7 +420,7 @@ public sealed class TrayAppContext : ApplicationContext
         {
             MessageBox.Show(
                 $"Logged in, but protection refresh failed: {ex.Message}",
-                "VRChat Status Guard",
+                "Status Guard",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
             UpdateTray();
@@ -440,13 +490,13 @@ public sealed class TrayAppContext : ApplicationContext
             UpdateTray();
             MessageBox.Show(
                 $"Applied {ProtectionStatusMapping.ToUserLabel(settings.ProtectionStatus)}.",
-                "VRChat Status Guard",
+                "Status Guard",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Apply failed: {ex.Message}", "VRChat Status Guard", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show($"Apply failed: {ex.Message}", "Status Guard", MessageBoxButtons.OK, MessageBoxIcon.Error);
             UpdateTray();
         }
     }
@@ -516,6 +566,7 @@ public sealed class TrayAppContext : ApplicationContext
         var state = _orchestrator.State;
         var message = _orchestrator.LastMessage;
         _statusItem.Text = $"Status: {state} — {Trim(message, 60)}";
+        RefreshAuthMenuItem();
         _pauseItem.Text = _orchestrator.IsPaused ? "Resume protection" : "Pause protection";
         _tray.Text = Trim($"Status Guard: {state}", 63);
         _tray.Icon = TrayIcons.ForState(state);
@@ -525,21 +576,79 @@ public sealed class TrayAppContext : ApplicationContext
         }
     }
 
-    private void NotifyProtectionApplied(ProtectionAppliedEventArgs e)
+    private async void NotifyProtectionApplied(ProtectionAppliedEventArgs e)
     {
         UpdateTray();
-        var title = e.RepresentGroupId is null ? "Status updated" : "Group updated";
-        var body = e.RepresentGroupId is null
-            ? $"{ProtectionStatusMapping.ToUserLabel(e.Status)}\n{e.WorldId}"
-            : $"{e.RepresentGroupId}\n{e.WorldId}";
+        var worldName = FirstNonEmpty(
+            e.WorldName,
+            _catalog.Worlds.TryGetCached(e.WorldId)?.Name);
+        if (worldName is null)
+        {
+            try
+            {
+                worldName = (await _catalog.Worlds.GetAsync(e.WorldId).ConfigureAwait(true)).Name;
+            }
+            catch
+            {
+                worldName = "protected world";
+            }
+        }
+
+        var statusLabel = StatusUx.ShortName(e.Status);
+        string title;
+        string body;
+        if (string.IsNullOrWhiteSpace(e.RepresentGroupId))
+        {
+            // API apply only - VRChat may lag the live client (#62). No manual
+            // confirm chore in the tray; that is the opposite of automation.
+            title = "Status updated";
+            body = $"{statusLabel}\nIn {worldName}";
+        }
+        else
+        {
+            var group = _catalog.FindGroup(e.RepresentGroupId);
+            if (group is null)
+            {
+                try
+                {
+                    await _catalog.WarmupAsync(force: false).ConfigureAwait(true);
+                    group = _catalog.FindGroup(e.RepresentGroupId);
+                }
+                catch
+                {
+                    // catalog best-effort
+                }
+            }
+
+            var groupName = FirstNonEmpty(
+                e.RepresentGroupName,
+                group?.Name,
+                group?.HeaderLabel) ?? "your group";
+            title = "Now repping";
+            body = $"{groupName}\nIn {worldName}";
+        }
+
         try
         {
-            _tray.ShowBalloonTip(4500, title, Trim(body, 120), ToolTipIcon.Info);
+            _tray.ShowBalloonTip(8000, title, Trim(body, 200), ToolTipIcon.Info);
         }
         catch
         {
             // Balloons are best-effort (Focus Assist / shell quirks).
         }
+    }
+
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var v in values)
+        {
+            if (!string.IsNullOrWhiteSpace(v))
+            {
+                return v;
+            }
+        }
+
+        return null;
     }
 
     private static string Trim(string value, int max) =>

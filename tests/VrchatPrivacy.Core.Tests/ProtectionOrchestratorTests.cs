@@ -39,8 +39,12 @@ public class ProtectionOrchestratorTests : IDisposable
         }
     }
 
-    private ProtectionOrchestrator CreateOrch(IVrchatLogWatcher watcher, IVrchatSession session, AppSettingsStore store) =>
-        new(watcher, session, store, _activity);
+    private ProtectionOrchestrator CreateOrch(
+        IVrchatLogWatcher watcher,
+        IVrchatSession session,
+        AppSettingsStore store,
+        IVrchatClientPresence? presence = null) =>
+        new(watcher, session, store, _activity, presence: presence ?? new AlwaysOnPresence());
 
     [Fact]
     public async Task ConcurrentJoinWhileBusy_AppliesLatestWorld()
@@ -254,6 +258,146 @@ public class ProtectionOrchestratorTests : IDisposable
         Assert.Empty(session.RepresentedGroups);
     }
 
+    [Fact]
+    public async Task ClientExit_CancelsDeferredRepping()
+    {
+        var home = Parse(HomeId);
+        var dir = NewTempDir();
+        var store = new AppSettingsStore(dir);
+        var settings = AppSettings.CreateDefault();
+        settings.ProtectedWorldIds = new List<string> { HomeId };
+        settings.StatusByWorld[HomeId] = ProtectionStatus.Blue;
+        settings.RepresentGroupByWorld[HomeId] = "grp_481c4787-5fca-44b2-b6e4-d2d8c585f125";
+        settings.StartPaused = false;
+        store.Save(settings);
+
+        var repStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var session = new FakeSession
+        {
+            OnSetGroup = async (_, ct) =>
+            {
+                repStarted.TrySetResult();
+                await Task.Delay(TimeSpan.FromSeconds(30), ct);
+            },
+        };
+        var presence = new TogglePresence(running: true);
+        var watcher = new FakeWatcher();
+        using var orch = CreateOrch(watcher, session, store, presence);
+        await orch.StartAsync();
+
+        watcher.RaiseJoin(new WorldJoinEvent(home, "1", DateTimeOffset.UtcNow));
+        await WaitUntilAsync(() => session.AppliedStatuses.Count == 1, TimeSpan.FromSeconds(5));
+        await repStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        presence.SetRunning(false);
+
+        await WaitUntilAsync(
+            () => orch.State == ProtectionAppState.Disconnected && session.RepresentedGroups.Count == 0,
+            TimeSpan.FromSeconds(5));
+
+        Assert.Equal(ProtectionAppState.Disconnected, orch.State);
+        Assert.Empty(session.RepresentedGroups);
+        Assert.Contains("not running", orch.LastMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ReppingStatusMessage_UsesGroupNameNotId()
+    {
+        var home = Parse(HomeId);
+        var dir = NewTempDir();
+        var store = new AppSettingsStore(dir);
+        var settings = AppSettings.CreateDefault();
+        settings.ProtectedWorldIds = new List<string> { HomeId };
+        settings.StatusByWorld[HomeId] = ProtectionStatus.Orange;
+        settings.RepresentGroupByWorld[HomeId] = "grp_481c4787-5fca-44b2-b6e4-d2d8c585f125";
+        settings.StartPaused = false;
+        store.Save(settings);
+
+        var session = new FakeSession
+        {
+            Groups =
+            [
+                new GroupInfo(
+                    "grp_481c4787-5fca-44b2-b6e4-d2d8c585f125",
+                    "introVRt Lounge",
+                    "INTRO",
+                    "1234",
+                    null,
+                    null,
+                    false),
+            ],
+        };
+        var watcher = new FakeWatcher();
+        using var orch = CreateOrch(watcher, session, store);
+        await orch.StartAsync();
+        watcher.RaiseJoin(new WorldJoinEvent(home, "1", DateTimeOffset.UtcNow));
+
+        await WaitUntilAsync(
+            () => session.RepresentedGroups.Count == 1 &&
+                  orch.LastMessage.Contains("introVRt Lounge", StringComparison.Ordinal),
+            TimeSpan.FromSeconds(5));
+
+        Assert.DoesNotContain("grp_", orch.LastMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("introVRt Lounge", orch.LastMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StatusApplyWhileClientRunning_StaysWorkingWithoutManualConfirm()
+    {
+        var sleep = Parse(SleepId);
+        var dir = NewTempDir();
+        var store = new AppSettingsStore(dir);
+        var settings = AppSettings.CreateDefault();
+        settings.ProtectedWorldIds = new List<string> { SleepId };
+        settings.ProtectionStatus = ProtectionStatus.Orange;
+        settings.StartPaused = false;
+        store.Save(settings);
+
+        var session = new FakeSession();
+        var watcher = new FakeWatcher();
+        using var orch = CreateOrch(watcher, session, store);
+        ProtectionAppliedEventArgs? applied = null;
+        orch.ProtectionApplied += (_, e) => applied = e;
+
+        await orch.StartAsync();
+        watcher.RaiseJoin(new WorldJoinEvent(sleep, "1", DateTimeOffset.UtcNow));
+
+        await WaitUntilAsync(
+            () => orch.State == ProtectionAppState.Working && applied is not null,
+            TimeSpan.FromSeconds(5));
+
+        Assert.Equal(ProtectionStatus.Orange, session.AppliedStatuses.Single());
+        Assert.True(applied!.ApiStatusVerified);
+        Assert.True(applied.ClientSyncUncertain);
+        Assert.Contains("Applied", orch.LastMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("CONFIRM", orch.LastMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ClientNotRunning_IgnoresWorldJoined()
+    {
+        var home = Parse(HomeId);
+        var dir = NewTempDir();
+        var store = new AppSettingsStore(dir);
+        var settings = AppSettings.CreateDefault();
+        settings.ProtectedWorldIds = new List<string> { HomeId };
+        settings.StatusByWorld[HomeId] = ProtectionStatus.Blue;
+        settings.StartPaused = false;
+        store.Save(settings);
+
+        var session = new FakeSession();
+        var presence = new TogglePresence(running: false);
+        var watcher = new FakeWatcher();
+        using var orch = CreateOrch(watcher, session, store, presence);
+        await orch.StartAsync();
+
+        watcher.RaiseJoin(new WorldJoinEvent(home, "1", DateTimeOffset.UtcNow));
+        await Task.Delay(200);
+
+        Assert.Empty(session.AppliedStatuses);
+        Assert.Equal(ProtectionAppState.Disconnected, orch.State);
+    }
+
     private static WorldId Parse(string id)
     {
         if (!WorldId.TryParse(id, out var world))
@@ -299,11 +443,51 @@ public class ProtectionOrchestratorTests : IDisposable
         public void RaiseJoin(WorldJoinEvent join) => WorldJoined?.Invoke(this, join);
     }
 
+    private sealed class AlwaysOnPresence : IVrchatClientPresence
+    {
+        public bool IsRunning => true;
+#pragma warning disable CS0067 // tests never flip presence
+        public event EventHandler<bool>? Changed;
+#pragma warning restore CS0067
+        public void Start() { }
+        public void Stop() { }
+        public void Dispose() { }
+    }
+
+    private sealed class TogglePresence : IVrchatClientPresence
+    {
+        private bool _running;
+
+        public TogglePresence(bool running) => _running = running;
+
+        public bool IsRunning => _running;
+
+        public event EventHandler<bool>? Changed;
+
+        public void Start() { }
+
+        public void Stop() { }
+
+        public void Dispose() { }
+
+        public void SetRunning(bool running)
+        {
+            if (_running == running)
+            {
+                return;
+            }
+
+            _running = running;
+            Changed?.Invoke(this, running);
+        }
+    }
+
     private sealed class FakeSession : IVrchatSession
     {
         public bool IsAuthenticated => true;
         public List<ProtectionStatus> AppliedStatuses { get; } = new();
         public List<string> RepresentedGroups { get; } = new();
+        public List<GroupInfo> Groups { get; init; } = new();
         public Func<ProtectionStatus, CancellationToken, Task>? OnApply { get; set; }
         public Func<string, CancellationToken, Task>? OnSetGroup { get; set; }
 
@@ -316,6 +500,8 @@ public class ProtectionOrchestratorTests : IDisposable
 
         public Task<bool> TryResumeFromStoreAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(true);
+
+        public Task LogoutAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task<SessionSnapshot> GetCurrentUserAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(new SessionSnapshot("usr_x", "Test", "ask me"));
@@ -335,7 +521,7 @@ public class ProtectionOrchestratorTests : IDisposable
             Task.FromResult<IReadOnlyList<WorldInfo>>(Array.Empty<WorldInfo>());
 
         public Task<IReadOnlyList<GroupInfo>> GetUserGroupsAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<GroupInfo>>(Array.Empty<GroupInfo>());
+            Task.FromResult<IReadOnlyList<GroupInfo>>(Groups);
 
         public async Task SetRepresentingGroupAsync(string groupId, CancellationToken cancellationToken = default)
         {
