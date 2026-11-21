@@ -15,7 +15,8 @@
 #endif
 
 [Setup]
-AppId={{A7C8E2F1-9B4D-4E6A-8C31-5D2F0B7A91E4}
+; New AppId so upgrades do not keep installing into the old "Privacy Guard" folder.
+AppId={{B8D9F3A2-0C5E-5F7B-9D42-6E3A1C8B02F5}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
