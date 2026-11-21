@@ -185,8 +185,8 @@ public sealed class TrayAppContext : ApplicationContext
             if (!_updates.IsVelopackInstalled)
             {
                 var open = MessageBox.Show(
-                    "This install was not packaged with Velopack (dev run or older Inno Setup).\n\n" +
-                    "Open GitHub Releases to download the latest installer?",
+                    "This copy was not installed via Setup.exe (dev run or side-by-side publish).\n\n" +
+                    "Open GitHub Releases to download the installer?",
                     "VRChat Status Guard",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Information);

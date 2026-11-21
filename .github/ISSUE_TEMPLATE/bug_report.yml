@@ -14,7 +14,7 @@ body:
     attributes:
       label: App version
       description: Installer name, git tag, or About/tray tooltip version if shown.
-      placeholder: "v0.1.5 / VrchatStatusGuard-Setup-0.1.5.exe"
+      placeholder: "v0.2.0 / Setup.exe from GitHub Releases"
     validations:
       required: true
   - type: input

@@ -11,13 +11,12 @@ Features and bugs need a GitHub Issue before implementation work. See [AGENTS.md
 
 1. Windows 10/11 for the tray app and installer; Core unit tests also run in CI.
 2. Install [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
-3. For the wizard installer: `winget install JRSoftware.InnoSetup` (ISCC).
-4. Clone this repo; restore and test:
+3. Clone this repo; restore and test:
 
 ```powershell
 dotnet restore src/VrchatPrivacy.sln
 dotnet test tests/VrchatPrivacy.Core.Tests/VrchatPrivacy.Core.Tests.csproj
-.\scripts\build-installer.ps1
+.\scripts\build-velopack.ps1 -Version 0.1.0
 ```
 
 ## Git hygiene
