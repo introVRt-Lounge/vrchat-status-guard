@@ -44,6 +44,18 @@ public sealed class AboutForm : Form
             Width = 460,
         };
 
+        var logo = TryLoadLogo(DpiUtil.Scale(this, 120));
+        if (logo is not null)
+        {
+            stack.Controls.Add(new PictureBox
+            {
+                Image = logo,
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Size = new Size(DpiUtil.Scale(this, 120), DpiUtil.Scale(this, 120)),
+                Margin = new Padding(0, 0, 0, 8),
+            });
+        }
+
         stack.Controls.Add(DpiUtil.AutoLabel("VRChat Status Guard", VrcTheme.TitleFont, VrcTheme.TextPrimary));
         stack.Controls.Add(DpiUtil.AutoLabel(
             $"Version {AppUpdateService.CurrentVersion}",
@@ -51,7 +63,7 @@ public sealed class AboutForm : Form
             VrcTheme.TextMuted));
         stack.Controls.Add(Spacer(8));
         stack.Controls.Add(DpiUtil.AutoLabel(
-            "Windows tray helper that applies Ask Me / Do Not Disturb / Join Me when you enter worlds you protect.",
+            "Do you like to party? Do you also like to chill? We keep your public public and your private private - automatically.",
             VrcTheme.BodyFont,
             VrcTheme.TextPrimary,
             maxWidth: 460));
@@ -59,7 +71,7 @@ public sealed class AboutForm : Form
         stack.Controls.Add(Spacer(16));
         stack.Controls.Add(Section("Credits"));
         stack.Controls.Add(DpiUtil.AutoLabel(
-            "Built for the introVRt Lounge community - movies, games, and VR hangouts with fellow introverts.",
+            "Brought to you by the introVRt Lounge - movies, games, and VR hangouts with fellow introverts.",
             VrcTheme.BodyFont,
             VrcTheme.TextPrimary,
             maxWidth: 460));
@@ -110,6 +122,26 @@ public sealed class AboutForm : Form
 
     private Label Section(string text) =>
         DpiUtil.AutoLabel(text, VrcTheme.HeadingFont, VrcTheme.Accent);
+
+    private static Image? TryLoadLogo(int sizeHint)
+    {
+        try
+        {
+            var path = Path.Combine(AppContext.BaseDirectory, "Assets", "status-guard-logo.jpg");
+            if (!File.Exists(path))
+            {
+                return null;
+            }
+
+            using var fs = File.OpenRead(path);
+            using var img = Image.FromStream(fs);
+            return new Bitmap(img);
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     private Control LinkRow(string label, string url)
     {
