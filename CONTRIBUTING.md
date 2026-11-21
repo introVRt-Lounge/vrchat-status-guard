@@ -1,6 +1,7 @@
 # Contributing
 
-Private repo for introVRt Lounge collaborators.
+Public Windows tray app for VRChat status/group automation. Please read
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) and [SUPPORT.md](SUPPORT.md).
 
 ## Issues first
 
