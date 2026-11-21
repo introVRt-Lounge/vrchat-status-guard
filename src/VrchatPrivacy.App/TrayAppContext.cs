@@ -521,8 +521,10 @@ public sealed class TrayAppContext : ApplicationContext
     private void NotifyProtectionApplied(ProtectionAppliedEventArgs e)
     {
         UpdateTray();
-        var title = e.RepresentGroupId is null ? "Status updated" : "Status + group updated";
-        var body = $"{ProtectionStatusMapping.ToUserLabel(e.Status)}\n{e.WorldId}";
+        var title = e.RepresentGroupId is null ? "Status updated" : "Group updated";
+        var body = e.RepresentGroupId is null
+            ? $"{ProtectionStatusMapping.ToUserLabel(e.Status)}\n{e.WorldId}"
+            : $"{e.RepresentGroupId}\n{e.WorldId}";
         try
         {
             _tray.ShowBalloonTip(4500, title, Trim(body, 120), ToolTipIcon.Info);

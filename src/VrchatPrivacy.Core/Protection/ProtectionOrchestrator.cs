@@ -28,8 +28,13 @@ public sealed class ProtectionOrchestrator : IDisposable
     private ProtectionStatus? _lastAppliedStatus;
     private string? _lastAppliedRepresentGroupId;
     private int _busy;
+    private int _repBusy;
     private WorldJoinEvent? _pendingJoin;
     private CancellationTokenSource? _applyCts;
+    private CancellationTokenSource? _repCts;
+    private string? _pendingRepWorldId;
+    private string? _pendingRepGroupId;
+    private ProtectionStatus? _pendingRepStatus;
 
     public ProtectionOrchestrator(
         IVrchatLogWatcher watcher,
@@ -132,9 +137,11 @@ public sealed class ProtectionOrchestrator : IDisposable
         _watcher.WorldJoined -= OnWorldJoined;
         lock (_gate)
         {
-            _applyCts?.Cancel();
-            _applyCts?.Dispose();
-            _applyCts = null;
+            CancelAndDispose(ref _applyCts);
+            CancelAndDispose(ref _repCts);
+            _pendingRepWorldId = null;
+            _pendingRepGroupId = null;
+            _pendingRepStatus = null;
         }
 
         if (_watcher is IDisposable d)
@@ -156,17 +163,42 @@ public sealed class ProtectionOrchestrator : IDisposable
         {
             // Coalesce: only the latest world matters while we are rate-limited.
             _pendingJoin = join;
-            // Abort in-flight rate-limit wait / stale apply so we do not burn a
-            // mutation on a world the user already left (Home Blue → sleep Orange).
-            try
-            {
-                _applyCts?.Cancel();
-            }
-            catch (ObjectDisposedException)
-            {
-                // ignored
-            }
+            // Status wins: abort in-flight status wait and any deferred repping.
+            TryCancel(_applyCts);
+            CancelPendingRep_NoLock();
         }
+    }
+
+    private void CancelPendingRep_NoLock()
+    {
+        _pendingRepWorldId = null;
+        _pendingRepGroupId = null;
+        _pendingRepStatus = null;
+        TryCancel(_repCts);
+    }
+
+    private static void TryCancel(CancellationTokenSource? cts)
+    {
+        if (cts is null)
+        {
+            return;
+        }
+
+        try
+        {
+            cts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // ignored
+        }
+    }
+
+    private static void CancelAndDispose(ref CancellationTokenSource? cts)
+    {
+        TryCancel(cts);
+        cts?.Dispose();
+        cts = null;
     }
 
     private bool HasPendingJoin()
@@ -246,11 +278,13 @@ public sealed class ProtectionOrchestrator : IDisposable
             return;
         }
 
-        var representGroupId = settings.TryGetRepresentGroupId(decision.WorldId.Value.Value);
+        var worldId = decision.WorldId.Value.Value;
+        var representGroupId = settings.TryGetRepresentGroupId(worldId);
+        var statusChanged = _lastAppliedWorld != decision.WorldId || _lastAppliedStatus != decision.TargetStatus;
+        var groupChanged = !string.IsNullOrWhiteSpace(representGroupId) &&
+            !string.Equals(_lastAppliedRepresentGroupId, representGroupId, StringComparison.OrdinalIgnoreCase);
 
-        if (_lastAppliedWorld == decision.WorldId &&
-            _lastAppliedStatus == decision.TargetStatus &&
-            string.Equals(_lastAppliedRepresentGroupId, representGroupId, StringComparison.OrdinalIgnoreCase))
+        if (!statusChanged && !groupChanged)
         {
             SetState(ProtectionAppState.Working, "Already protected for this world.");
             return;
@@ -258,12 +292,10 @@ public sealed class ProtectionOrchestrator : IDisposable
 
         if (HasPendingJoin())
         {
-            AppLog.Info($"Skipping stale apply for {decision.WorldId.Value.Value}; newer join pending.");
+            AppLog.Info($"Skipping stale apply for {worldId}; newer join pending.");
             SetState(ProtectionAppState.Working, "Superseded by newer world join.");
             return;
         }
-
-        SetState(ProtectionAppState.Working, $"Applying {ProtectionStatusMapping.ToApiStatus(decision.TargetStatus.Value)}…");
 
         CancellationTokenSource applyCts;
         lock (_gate)
@@ -275,60 +307,169 @@ public sealed class ProtectionOrchestrator : IDisposable
 
         try
         {
-            var statusChanged = _lastAppliedWorld != decision.WorldId || _lastAppliedStatus != decision.TargetStatus;
+            // Status is the privacy-critical path. Notify as soon as it lands; repping is deferred.
             if (statusChanged)
             {
+                SetState(ProtectionAppState.Working, $"Applying {ProtectionStatusMapping.ToApiStatus(decision.TargetStatus.Value)}…");
                 await _session.ApplyProtectionStatusAsync(decision.TargetStatus.Value, applyCts.Token)
                     .ConfigureAwait(false);
                 if (HasPendingJoin())
                 {
-                    AppLog.Info($"Aborting after status for {decision.WorldId.Value.Value}; newer join pending.");
+                    AppLog.Info($"Aborting after status for {worldId}; newer join pending.");
                     SetState(ProtectionAppState.Working, "Superseded by newer world join.");
                     return;
                 }
 
+                _lastAppliedWorld = decision.WorldId;
+                _lastAppliedStatus = decision.TargetStatus;
+
+                var label = ProtectionStatusMapping.ToUserLabel(decision.TargetStatus.Value);
+                var msg = $"Applied {label} for {worldId}";
+                SetState(ProtectionAppState.Working, msg + ".");
+                ProtectionApplied?.Invoke(this, new ProtectionAppliedEventArgs
+                {
+                    WorldId = worldId,
+                    Status = decision.TargetStatus.Value,
+                    RepresentGroupId = null,
+                    Summary = msg,
+                });
+            }
+            else
+            {
+                _lastAppliedWorld = decision.WorldId;
                 _lastAppliedStatus = decision.TargetStatus;
             }
 
-            var groupChanged = !string.IsNullOrWhiteSpace(representGroupId) &&
-                !string.Equals(_lastAppliedRepresentGroupId, representGroupId, StringComparison.OrdinalIgnoreCase);
             if (groupChanged)
             {
-                SetState(ProtectionAppState.Working, $"Representing group {representGroupId}…");
-                await _session.SetRepresentingGroupAsync(representGroupId!, applyCts.Token).ConfigureAwait(false);
-                _lastAppliedRepresentGroupId = representGroupId;
-            }
-
-            _lastAppliedWorld = decision.WorldId;
-            var label = ProtectionStatusMapping.ToUserLabel(decision.TargetStatus.Value);
-            var msg = $"Applied {label} for {decision.WorldId.Value.Value}";
-            if (!string.IsNullOrWhiteSpace(representGroupId))
-            {
-                msg += " (+ group)";
-            }
-
-            SetState(ProtectionAppState.Working, msg + ".");
-
-            if (statusChanged || groupChanged)
-            {
-                ProtectionApplied?.Invoke(this, new ProtectionAppliedEventArgs
-                {
-                    WorldId = decision.WorldId.Value.Value,
-                    Status = decision.TargetStatus.Value,
-                    RepresentGroupId = representGroupId,
-                    Summary = msg,
-                });
+                QueueRepping(worldId, representGroupId!, decision.TargetStatus.Value);
             }
         }
         catch (OperationCanceledException) when (HasPendingJoin() || applyCts.IsCancellationRequested)
         {
-            AppLog.Info($"Apply cancelled for {decision.WorldId.Value.Value} (superseded).");
+            AppLog.Info($"Apply cancelled for {worldId} (superseded).");
             SetState(ProtectionAppState.Working, "Superseded by newer world join.");
         }
         catch (Exception ex)
         {
             AppLog.Error("HandleJoin apply failed", ex);
             SetState(ProtectionAppState.Failed, $"Status update failed: {ex.Message}");
+        }
+    }
+
+    private void QueueRepping(string worldId, string groupId, ProtectionStatus status)
+    {
+        lock (_gate)
+        {
+            _pendingRepWorldId = worldId;
+            _pendingRepGroupId = groupId;
+            _pendingRepStatus = status;
+            try
+            {
+                _repCts?.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // ignored
+            }
+        }
+
+        _ = DrainReppingAsync();
+    }
+
+    private async Task DrainReppingAsync()
+    {
+        if (Interlocked.Exchange(ref _repBusy, 1) == 1)
+        {
+            return;
+        }
+
+        try
+        {
+            while (true)
+            {
+                string? worldId;
+                string? groupId;
+                ProtectionStatus? status;
+                CancellationTokenSource repCts;
+                lock (_gate)
+                {
+                    worldId = _pendingRepWorldId;
+                    groupId = _pendingRepGroupId;
+                    status = _pendingRepStatus;
+                    _pendingRepWorldId = null;
+                    _pendingRepGroupId = null;
+                    _pendingRepStatus = null;
+                    if (worldId is null || groupId is null || status is null)
+                    {
+                        break;
+                    }
+
+                    _repCts?.Dispose();
+                    _repCts = new CancellationTokenSource();
+                    repCts = _repCts;
+                }
+
+                if (HasPendingJoin())
+                {
+                    AppLog.Info($"Skipping repping {groupId}; status join pending.");
+                    break;
+                }
+
+                if (string.Equals(_lastAppliedRepresentGroupId, groupId, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                SetState(ProtectionAppState.Working, $"Representing group {groupId}…");
+                try
+                {
+                    await _session.SetRepresentingGroupAsync(groupId, repCts.Token).ConfigureAwait(false);
+                    if (HasPendingJoin() || repCts.IsCancellationRequested)
+                    {
+                        AppLog.Info($"Repping aborted for {groupId}; newer join pending.");
+                        break;
+                    }
+
+                    _lastAppliedRepresentGroupId = groupId;
+                    var label = ProtectionStatusMapping.ToUserLabel(status.Value);
+                    var msg = $"Repping {groupId} for {worldId}";
+                    SetState(ProtectionAppState.Working, msg + ".");
+                    ProtectionApplied?.Invoke(this, new ProtectionAppliedEventArgs
+                    {
+                        WorldId = worldId,
+                        Status = status.Value,
+                        RepresentGroupId = groupId,
+                        Summary = msg,
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    AppLog.Info($"Repping cancelled for {groupId}.");
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    AppLog.Error("Repping apply failed", ex);
+                    SetState(ProtectionAppState.Failed, $"Group update failed: {ex.Message}");
+                    break;
+                }
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _repBusy, 0);
+
+            bool again;
+            lock (_gate)
+            {
+                again = _pendingRepGroupId is not null;
+            }
+
+            if (again && !HasPendingJoin())
+            {
+                _ = DrainReppingAsync();
+            }
         }
     }
 

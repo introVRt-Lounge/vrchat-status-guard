@@ -126,20 +126,102 @@ public class ProtectionOrchestratorTests
         var session = new FakeSession();
         var watcher = new FakeWatcher();
         using var orch = new ProtectionOrchestrator(watcher, session, store);
-        ProtectionAppliedEventArgs? applied = null;
-        orch.ProtectionApplied += (_, e) => applied = e;
+        var applied = new List<ProtectionAppliedEventArgs>();
+        orch.ProtectionApplied += (_, e) => applied.Add(e);
 
         await orch.StartAsync();
         watcher.RaiseJoin(new WorldJoinEvent(sleep, "1", DateTimeOffset.UtcNow));
 
-        await WaitUntilAsync(() => applied is not null, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(
+            () => session.AppliedStatuses.Count == 1 && session.RepresentedGroups.Count == 1,
+            TimeSpan.FromSeconds(5));
 
-        Assert.NotNull(applied);
-        Assert.Equal(SleepId, applied!.WorldId);
-        Assert.Equal(ProtectionStatus.Orange, applied.Status);
-        Assert.Equal("grp_test", applied.RepresentGroupId);
+        Assert.Contains(applied, e => e.WorldId == SleepId && e.Status == ProtectionStatus.Orange);
         Assert.Equal(new[] { ProtectionStatus.Orange }, session.AppliedStatuses);
         Assert.Equal(new[] { "grp_test" }, session.RepresentedGroups);
+    }
+
+    [Fact]
+    public async Task StatusNotify_FiresBeforeReppingCompletes()
+    {
+        var sleep = Parse(SleepId);
+        var dir = NewTempDir();
+        var store = new AppSettingsStore(dir);
+        var settings = AppSettings.CreateDefault();
+        settings.ProtectedWorldIds = new List<string> { SleepId };
+        settings.ProtectionStatus = ProtectionStatus.Orange;
+        settings.RepresentGroupByWorld[SleepId] = "grp_slow";
+        store.Save(settings);
+
+        var repStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRep = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var session = new FakeSession
+        {
+            OnSetGroup = async (_, ct) =>
+            {
+                repStarted.TrySetResult();
+                await releaseRep.Task.WaitAsync(ct);
+            },
+        };
+        var watcher = new FakeWatcher();
+        using var orch = new ProtectionOrchestrator(watcher, session, store);
+        ProtectionAppliedEventArgs? first = null;
+        orch.ProtectionApplied += (_, e) => first ??= e;
+
+        await orch.StartAsync();
+        watcher.RaiseJoin(new WorldJoinEvent(sleep, "1", DateTimeOffset.UtcNow));
+
+        await WaitUntilAsync(() => first is not null, TimeSpan.FromSeconds(5));
+        Assert.Equal(ProtectionStatus.Orange, first!.Status);
+        Assert.Equal(new[] { ProtectionStatus.Orange }, session.AppliedStatuses);
+        Assert.Empty(session.RepresentedGroups);
+
+        await repStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        releaseRep.TrySetResult();
+        await WaitUntilAsync(() => session.RepresentedGroups.Count == 1, TimeSpan.FromSeconds(5));
+        Assert.Equal(new[] { "grp_slow" }, session.RepresentedGroups);
+    }
+
+    [Fact]
+    public async Task NewJoinDuringRepWait_CancelsRepAndAppliesNewStatus()
+    {
+        var home = Parse(HomeId);
+        var sleep = Parse(SleepId);
+        var dir = NewTempDir();
+        var store = new AppSettingsStore(dir);
+        var settings = AppSettings.CreateDefault();
+        settings.ProtectedWorldIds = new List<string> { HomeId, SleepId };
+        settings.StatusByWorld[HomeId] = ProtectionStatus.Blue;
+        settings.ProtectionStatus = ProtectionStatus.Orange;
+        settings.RepresentGroupByWorld[HomeId] = "grp_home";
+        store.Save(settings);
+
+        var repStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var session = new FakeSession
+        {
+            OnSetGroup = async (_, ct) =>
+            {
+                repStarted.TrySetResult();
+                await Task.Delay(TimeSpan.FromSeconds(30), ct);
+            },
+        };
+        var watcher = new FakeWatcher();
+        using var orch = new ProtectionOrchestrator(watcher, session, store);
+
+        await orch.StartAsync();
+        watcher.RaiseJoin(new WorldJoinEvent(home, "1", DateTimeOffset.UtcNow));
+        await repStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        watcher.RaiseJoin(new WorldJoinEvent(sleep, "2", DateTimeOffset.UtcNow));
+
+        await WaitUntilAsync(
+            () => session.AppliedStatuses.Count >= 2 &&
+                  session.AppliedStatuses[^1] == ProtectionStatus.Orange,
+            TimeSpan.FromSeconds(5));
+
+        Assert.Equal(ProtectionStatus.Blue, session.AppliedStatuses[0]);
+        Assert.Equal(ProtectionStatus.Orange, session.AppliedStatuses[^1]);
+        Assert.Empty(session.RepresentedGroups);
     }
 
     private static WorldId Parse(string id)
@@ -193,6 +275,7 @@ public class ProtectionOrchestratorTests
         public List<ProtectionStatus> AppliedStatuses { get; } = new();
         public List<string> RepresentedGroups { get; } = new();
         public Func<ProtectionStatus, CancellationToken, Task>? OnApply { get; set; }
+        public Func<string, CancellationToken, Task>? OnSetGroup { get; set; }
 
         public Task<LoginChallenge?> BeginLoginAsync(string username, string password, CancellationToken cancellationToken = default) =>
             Task.FromResult<LoginChallenge?>(null);
@@ -224,10 +307,15 @@ public class ProtectionOrchestratorTests
         public Task<IReadOnlyList<GroupInfo>> GetUserGroupsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<GroupInfo>>(Array.Empty<GroupInfo>());
 
-        public Task SetRepresentingGroupAsync(string groupId, CancellationToken cancellationToken = default)
+        public async Task SetRepresentingGroupAsync(string groupId, CancellationToken cancellationToken = default)
         {
+            if (OnSetGroup is not null)
+            {
+                await OnSetGroup(groupId, cancellationToken);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
             RepresentedGroups.Add(groupId);
-            return Task.CompletedTask;
         }
     }
 }
