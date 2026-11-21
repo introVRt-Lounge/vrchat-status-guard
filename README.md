@@ -4,7 +4,7 @@
 
 ![Status Guard banner](docs/assets/status-guard-banner.jpg)
 
-<p align="center"><img src="docs/assets/status-guard-logo.jpg" alt="VRChat Status Guard logo" width="220" /></p>
+<p align="center"><img src="docs/assets/status-guard-logo.png" alt="VRChat Status Guard logo" width="220" /></p>
 
 ## Friends, lend me your ears
 

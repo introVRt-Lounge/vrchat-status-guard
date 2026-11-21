@@ -142,7 +142,7 @@ public sealed class AboutForm : Form
     {
         try
         {
-            var path = Path.Combine(AppContext.BaseDirectory, "Assets", "status-guard-logo.jpg");
+            var path = Path.Combine(AppContext.BaseDirectory, "Assets", "status-guard-logo.png");
             if (!File.Exists(path))
             {
                 return null;
