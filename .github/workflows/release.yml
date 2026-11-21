@@ -1,17 +1,27 @@
 name: Release
 
-# Every merge/push to main builds the Windows installer and publishes a GitHub Release.
+# Tag-gated: push v1.2.3 (or workflow_dispatch with version input).
 on:
   push:
-    branches: [main]
+    tags:
+      - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Semver without leading v (e.g. 0.2.0). Creates tag v{version} assets."
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-main
+  group: release-tags
   cancel-in-progress: false
+
+env:
+  VELOPACK_VERSION: "1.2.161"
+  PACK_ID: "VRChatStatusGuard"
 
 jobs:
   windows-release:
@@ -22,6 +32,22 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "8.0.x"
+
+      - name: Resolve version
+        id: ver
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $v = "${{ inputs.version }}".TrimStart('v')
+          } else {
+            $v = "${{ github.ref_name }}".TrimStart('v')
+          }
+          if ($v -notmatch '^\d+\.\d+\.\d+') {
+            throw "Version must look like 0.2.0 (got '$v')"
+          }
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "tag=v$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "Release version $v"
 
       - name: Install Inno Setup
         shell: pwsh
@@ -41,27 +67,45 @@ jobs:
             }
           }
 
-      - name: Version from run number
-        id: ver
-        shell: pwsh
-        run: |
-          $v = "0.1.$env:GITHUB_RUN_NUMBER"
-          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "tag=v$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          Write-Host "Release version $v"
-
-      - name: Build Setup.exe
+      - name: Build Inno Setup.exe
         shell: pwsh
         run: .\scripts\build-installer.ps1 -Version "${{ steps.ver.outputs.version }}"
+
+      - name: Install vpk
+        shell: pwsh
+        run: dotnet tool install -g vpk --version ${{ env.VELOPACK_VERSION }}
+
+      - name: Download previous Velopack release (delta baseline)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          vpk download github `
+            --repoUrl "https://github.com/${{ github.repository }}" `
+            --token "${{ secrets.GITHUB_TOKEN }}" `
+            --outputDir artifacts/velopack
+
+      - name: Velopack pack
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts/velopack | Out-Null
+          vpk pack `
+            --packId ${{ env.PACK_ID }} `
+            --packVersion ${{ steps.ver.outputs.version }} `
+            --packDir artifacts/publish `
+            --mainExe VrchatPrivacy.App.exe `
+            --packTitle "VRChat Status Guard" `
+            --outputDir artifacts/velopack
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: VrchatStatusGuard-Setup
-          path: artifacts/installer/*.exe
+          path: |
+            artifacts/installer/*.exe
+            artifacts/velopack/*
           if-no-files-found: error
 
-      - name: Create GitHub Release
+      - name: Create / update GitHub Release (Inno)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
@@ -70,3 +114,14 @@ jobs:
           generate_release_notes: true
           make_latest: true
           files: artifacts/installer/*.exe
+
+      - name: Upload Velopack assets to GitHub Release
+        shell: pwsh
+        run: |
+          vpk upload github `
+            --repoUrl "https://github.com/${{ github.repository }}" `
+            --token "${{ secrets.GITHUB_TOKEN }}" `
+            --outputDir artifacts/velopack `
+            --tag ${{ steps.ver.outputs.tag }} `
+            --releaseName "VRChat Status Guard ${{ steps.ver.outputs.tag }}" `
+            --merge

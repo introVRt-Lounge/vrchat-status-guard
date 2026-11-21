@@ -1,8 +1,10 @@
+using Velopack;
 using VrchatPrivacy.Core.Auth;
 using VrchatPrivacy.Core.Logs;
 using VrchatPrivacy.Core.Protection;
 using VrchatPrivacy.Core.Settings;
 using VrchatPrivacy.App.Ui;
+using VrchatPrivacy.App.Updates;
 
 namespace VrchatPrivacy.App;
 
@@ -18,6 +20,7 @@ public sealed class TrayAppContext : ApplicationContext
     private readonly VrchatLogDirectoryWatcher _watcher;
     private readonly ProtectionOrchestrator _orchestrator;
     private readonly HubCatalog _catalog;
+    private readonly AppUpdateService _updates;
     private readonly SynchronizationContext _ui;
     private DateTime _suppressSingleClickUntilUtc = DateTime.MinValue;
     private int _pendingClickGeneration;
@@ -32,6 +35,7 @@ public sealed class TrayAppContext : ApplicationContext
         _watcher = new VrchatLogDirectoryWatcher();
         _orchestrator = new ProtectionOrchestrator(_watcher, _session, _settingsStore);
         _catalog = new HubCatalog(_session);
+        _updates = new AppUpdateService();
         _orchestrator.StateChanged += (_, _) => BeginInvoke(UpdateTray);
 
         _statusItem = new ToolStripMenuItem("Status: starting…") { Enabled = false };
@@ -44,6 +48,9 @@ public sealed class TrayAppContext : ApplicationContext
         _menu.Items.Add("Apply status now", null, async (_, _) => await ForceApplyAsync());
         _menu.Items.Add(_pauseItem);
         _menu.Items.Add("Protection hub…", null, (_, _) => EditSettings());
+        _menu.Items.Add(new ToolStripSeparator());
+        _menu.Items.Add("Check for updates…", null, async (_, _) => await CheckForUpdatesInteractiveAsync());
+        _menu.Items.Add("What's New…", null, async (_, _) => await ShowWhatsNewAsync());
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add("Exit", null, (_, _) => Exit());
 
@@ -129,6 +136,7 @@ public sealed class TrayAppContext : ApplicationContext
             }
 
             MaybeShowFirstRunWizard();
+            _ = CheckForUpdatesQuietAsync();
         }
         catch (Exception ex)
         {
@@ -136,6 +144,108 @@ public sealed class TrayAppContext : ApplicationContext
         }
 
         BeginInvoke(UpdateTray);
+    }
+
+    private async Task CheckForUpdatesQuietAsync()
+    {
+        try
+        {
+            var update = await _updates.CheckForUpdatesAsync().ConfigureAwait(true);
+            if (update is null)
+            {
+                return;
+            }
+
+            var ver = update.TargetFullRelease?.Version?.ToString() ?? "a newer build";
+            try
+            {
+                _tray.ShowBalloonTip(
+                    5000,
+                    "Update available",
+                    $"Status Guard {ver} is ready. Use tray → Check for updates…",
+                    ToolTipIcon.Info);
+            }
+            catch
+            {
+                // Balloons are best-effort.
+            }
+        }
+        catch (Exception ex)
+        {
+            VrchatPrivacy.Core.Logging.AppLog.Warn($"Quiet update check failed: {ex.Message}");
+        }
+    }
+
+    private async Task CheckForUpdatesInteractiveAsync()
+    {
+        try
+        {
+            if (!_updates.IsVelopackInstalled)
+            {
+                var open = MessageBox.Show(
+                    "This install was not packaged with Velopack (dev run or older Inno Setup).\n\n" +
+                    "Open GitHub Releases to download the latest installer?",
+                    "VRChat Status Guard",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Information);
+                if (open == DialogResult.Yes)
+                {
+                    AppUpdateService.OpenReleasesPage();
+                }
+
+                return;
+            }
+
+            var update = await _updates.CheckForUpdatesAsync().ConfigureAwait(true);
+            if (update is null)
+            {
+                MessageBox.Show(
+                    $"You're on the latest build ({AppUpdateService.CurrentVersion}).",
+                    "VRChat Status Guard",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            var ver = update.TargetFullRelease?.Version?.ToString() ?? "new version";
+            var go = MessageBox.Show(
+                $"Update to {ver} now? The app will download, restart, and apply.",
+                "VRChat Status Guard",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+            if (go != DialogResult.Yes)
+            {
+                return;
+            }
+
+            await _updates.DownloadAndApplyAsync(update).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Update check failed: {ex.Message}",
+                "VRChat Status Guard",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
+    }
+
+    private async Task ShowWhatsNewAsync()
+    {
+        try
+        {
+            var notes = await _updates.GetReleaseNotesAsync().ConfigureAwait(true);
+            using var form = new WhatsNewForm(notes);
+            form.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Could not load What's New: {ex.Message}",
+                "VRChat Status Guard",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
     }
 
     private void MaybeShowFirstRunWizard()

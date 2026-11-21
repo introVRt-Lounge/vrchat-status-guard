@@ -28,6 +28,8 @@ dotnet publish $appProject `
     -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:DebugType=None `
     -p:DebugSymbols=false `
+    -p:Version=$Version `
+    -p:InformationalVersion=$Version `
     -o $publishDir
 
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed ($LASTEXITCODE)" }

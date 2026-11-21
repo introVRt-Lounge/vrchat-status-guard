@@ -28,15 +28,16 @@ Best-effort automation. A short delay after world entry is acceptable. Never aut
 
 ## Install (end users)
 
-1. Run the wizard: `VrchatStatusGuard-Setup-*.exe` (CI artifact / Releases).
-2. Leave **Start with Windows** checked (default).
-3. Tray icon appears → **Login…** with your VRChat username/email, password, and 2FA if prompted.
-4. First run: a short **setup wizard** walks you through protecting one world (status required, group optional), then shows tray tips.
-5. Tray: **left-click** pauses/resumes; **double-click** opens the protection hub (does not pause); right-click for the full menu.
-6. Protection hub: protected worlds first (status + group). Expand **Add from recent** or **Add by ID/URL** for the same guided steps.
-7. Enter a protected world - status (and optional group) apply. Leaving an unprotected world does not invent a status change.
+1. Grab the latest GitHub Release: [Releases](https://github.com/introVRt-Lounge/vrchat-status-guard/releases).
+2. Prefer the **Velopack** `Setup.exe` when present (enables in-app updates). The Inno `VrchatStatusGuard-Setup-*.exe` still works for a classic install.
+3. Leave **Start with Windows** checked when the wizard offers it.
+4. Tray icon appears → **Login…** with your VRChat username/email, password, and 2FA if prompted.
+5. First run: a short **setup wizard** walks you through protecting one world (status required, group optional), then shows tray tips.
+6. Tray: **left-click** pauses/resumes; **double-click** opens the protection hub (does not pause); right-click for the full menu (including **Check for updates…** / **What's New…**).
+7. Protection hub: protected worlds first (status + group). Expand **Add from recent** or **Add by ID/URL** for the same guided steps.
+8. Enter a protected world - status (and optional group) apply. Leaving an unprotected world does not invent a status change.
 
-Self-contained build - no separate .NET runtime. Session cookies stay in DPAPI on that PC after first login.
+Self-contained build - no separate .NET runtime. Session cookies stay in DPAPI on that PC after first login. Releases are **tag-gated** (`v*`); maintainers push a version tag (or run the Release workflow manually) to publish.
 
 Local build:
 
