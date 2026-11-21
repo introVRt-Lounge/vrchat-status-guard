@@ -2,6 +2,7 @@ using VrchatPrivacy.Core.Logging;
 
 namespace VrchatPrivacy.Core.Tests;
 
+[Collection("AppLogSerial")]
 public class AppLogTests : IDisposable
 {
     private readonly string _dir;

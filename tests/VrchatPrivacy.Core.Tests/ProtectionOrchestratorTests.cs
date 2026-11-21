@@ -1,3 +1,4 @@
+using VrchatPrivacy.Core.Activity;
 using VrchatPrivacy.Core.Auth;
 using VrchatPrivacy.Core.Groups;
 using VrchatPrivacy.Core.Logs;
@@ -7,22 +8,27 @@ using VrchatPrivacy.Core.Worlds;
 
 namespace VrchatPrivacy.Core.Tests;
 
+[Collection("AppLogSerial")]
 public class ProtectionOrchestratorTests : IDisposable
 {
     private const string HomeId = AppSettings.DefaultProtectedWorldId;
     private const string SleepId = "wrld_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
     private readonly string _logDir;
+    private readonly ActivityJournal _activity;
 
     public ProtectionOrchestratorTests()
     {
         _logDir = Path.Combine(Path.GetTempPath(), "vsg-orch-log-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_logDir);
         VrchatPrivacy.Core.Logging.AppLog.SetDirectoryOverride(_logDir);
+        _activity = new ActivityJournal();
+        _activity.SetDirectoryOverride(_logDir);
     }
 
     public void Dispose()
     {
         VrchatPrivacy.Core.Logging.AppLog.SetDirectoryOverride(null);
+        _activity.SetDirectoryOverride(null);
         try
         {
             Directory.Delete(_logDir, recursive: true);
@@ -32,6 +38,9 @@ public class ProtectionOrchestratorTests : IDisposable
             // best-effort
         }
     }
+
+    private ProtectionOrchestrator CreateOrch(IVrchatLogWatcher watcher, IVrchatSession session, AppSettingsStore store) =>
+        new(watcher, session, store, _activity);
 
     [Fact]
     public async Task ConcurrentJoinWhileBusy_AppliesLatestWorld()
@@ -62,7 +71,7 @@ public class ProtectionOrchestratorTests : IDisposable
             },
         };
         var watcher = new FakeWatcher();
-        using var orch = new ProtectionOrchestrator(watcher, session, store);
+        using var orch = CreateOrch(watcher, session, store);
         var applied = new List<ProtectionAppliedEventArgs>();
         orch.ProtectionApplied += (_, e) => applied.Add(e);
 
@@ -114,7 +123,7 @@ public class ProtectionOrchestratorTests : IDisposable
             },
         };
         var watcher = new FakeWatcher();
-        using var orch = new ProtectionOrchestrator(watcher, session, store);
+        using var orch = CreateOrch(watcher, session, store);
         await orch.StartAsync();
 
         watcher.RaiseJoin(new WorldJoinEvent(home, "1", DateTimeOffset.UtcNow));
@@ -146,7 +155,7 @@ public class ProtectionOrchestratorTests : IDisposable
 
         var session = new FakeSession();
         var watcher = new FakeWatcher();
-        using var orch = new ProtectionOrchestrator(watcher, session, store);
+        using var orch = CreateOrch(watcher, session, store);
         var applied = new List<ProtectionAppliedEventArgs>();
         orch.ProtectionApplied += (_, e) => applied.Add(e);
 
@@ -185,7 +194,7 @@ public class ProtectionOrchestratorTests : IDisposable
             },
         };
         var watcher = new FakeWatcher();
-        using var orch = new ProtectionOrchestrator(watcher, session, store);
+        using var orch = CreateOrch(watcher, session, store);
         ProtectionAppliedEventArgs? first = null;
         orch.ProtectionApplied += (_, e) => first ??= e;
 
@@ -227,7 +236,7 @@ public class ProtectionOrchestratorTests : IDisposable
             },
         };
         var watcher = new FakeWatcher();
-        using var orch = new ProtectionOrchestrator(watcher, session, store);
+        using var orch = CreateOrch(watcher, session, store);
 
         await orch.StartAsync();
         watcher.RaiseJoin(new WorldJoinEvent(home, "1", DateTimeOffset.UtcNow));

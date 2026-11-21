@@ -1,3 +1,4 @@
+using VrchatPrivacy.Core.Activity;
 using VrchatPrivacy.Core.Auth;
 using VrchatPrivacy.Core.Logging;
 using VrchatPrivacy.Core.Logs;
@@ -19,6 +20,8 @@ public sealed class ProtectionOrchestrator : IDisposable
     private readonly IVrchatLogWatcher _watcher;
     private readonly IVrchatSession _session;
     private readonly AppSettingsStore _settingsStore;
+    private readonly ActivityJournal _activity;
+    private readonly WorldInfoLookup? _worlds;
     private readonly object _gate = new();
     private AppSettings _settings;
     private bool _paused;
@@ -39,17 +42,23 @@ public sealed class ProtectionOrchestrator : IDisposable
     public ProtectionOrchestrator(
         IVrchatLogWatcher watcher,
         IVrchatSession session,
-        AppSettingsStore settingsStore)
+        AppSettingsStore settingsStore,
+        ActivityJournal? activity = null,
+        WorldInfoLookup? worlds = null)
     {
         _watcher = watcher;
         _session = session;
         _settingsStore = settingsStore;
+        _activity = activity ?? new ActivityJournal();
+        _worlds = worlds;
         _settings = _settingsStore.Load();
         _paused = _settings.StartPaused;
     }
 
     public event EventHandler? StateChanged;
     public event EventHandler<ProtectionAppliedEventArgs>? ProtectionApplied;
+
+    public ActivityJournal Activity => _activity;
 
     public ProtectionAppState State
     {
@@ -111,14 +120,17 @@ public sealed class ProtectionOrchestrator : IDisposable
         if (paused)
         {
             SetState(ProtectionAppState.Paused, "Protection paused.");
+            _activity.RecordPaused();
         }
         else if (_session.IsAuthenticated)
         {
             SetState(ProtectionAppState.Working, "Protection resumed.");
+            _activity.RecordResumed();
         }
         else
         {
             SetState(ProtectionAppState.AwaitingLogin, "Login required.");
+            _activity.RecordResumed();
         }
     }
 
@@ -307,6 +319,16 @@ public sealed class ProtectionOrchestrator : IDisposable
 
         try
         {
+            var worldInfo = TryWorldInfo(worldId);
+            if (statusChanged || groupChanged)
+            {
+                _activity.RecordProtectedWorldEntered(
+                    worldId,
+                    worldInfo?.Name,
+                    worldInfo?.ThumbnailImageUrl,
+                    decision.TargetStatus.Value);
+            }
+
             // Status is the privacy-critical path. Notify as soon as it lands; repping is deferred.
             if (statusChanged)
             {
@@ -326,6 +348,11 @@ public sealed class ProtectionOrchestrator : IDisposable
                 var label = ProtectionStatusMapping.ToUserLabel(decision.TargetStatus.Value);
                 var msg = $"Applied {label} for {worldId}";
                 SetState(ProtectionAppState.Working, msg + ".");
+                _activity.RecordStatusApplied(
+                    worldId,
+                    worldInfo?.Name,
+                    worldInfo?.ThumbnailImageUrl,
+                    decision.TargetStatus.Value);
                 ProtectionApplied?.Invoke(this, new ProtectionAppliedEventArgs
                 {
                     WorldId = worldId,
@@ -432,9 +459,15 @@ public sealed class ProtectionOrchestrator : IDisposable
                     }
 
                     _lastAppliedRepresentGroupId = groupId;
-                    var label = ProtectionStatusMapping.ToUserLabel(status.Value);
                     var msg = $"Repping {groupId} for {worldId}";
                     SetState(ProtectionAppState.Working, msg + ".");
+                    var worldInfo = TryWorldInfo(worldId);
+                    _activity.RecordGroupApplied(
+                        worldId,
+                        worldInfo?.Name,
+                        worldInfo?.ThumbnailImageUrl,
+                        status.Value,
+                        groupId);
                     ProtectionApplied?.Invoke(this, new ProtectionAppliedEventArgs
                     {
                         WorldId = worldId,
@@ -483,4 +516,7 @@ public sealed class ProtectionOrchestrator : IDisposable
 
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    private WorldInfo? TryWorldInfo(string worldId) =>
+        _worlds?.TryGetCached(worldId);
 }

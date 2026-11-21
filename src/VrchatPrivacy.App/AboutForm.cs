@@ -1,14 +1,20 @@
 using System.Diagnostics;
 using VrchatPrivacy.App.Ui;
 using VrchatPrivacy.App.Updates;
+using VrchatPrivacy.Core.Activity;
 
 namespace VrchatPrivacy.App;
 
 /// <summary>Credits (introVRt Lounge) + feedback (GitHub issues / PRs welcome).</summary>
 public sealed class AboutForm : Form
 {
-    public AboutForm()
+    private readonly ActivityJournal? _activity;
+    private readonly HubCatalog? _catalog;
+
+    public AboutForm(ActivityJournal? activity = null, HubCatalog? catalog = null)
     {
+        _activity = activity;
+        _catalog = catalog;
         Text = "About - VRChat Status Guard";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -104,7 +110,15 @@ public sealed class AboutForm : Form
             maxWidth: 460));
         var openLog = new Button { Text = "Open activity log…", AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
         VrcTheme.StyleGhostButton(openLog);
-        openLog.Click += (_, _) => ActivityLogForm.ShowLog(this);
+        openLog.Click += (_, _) =>
+        {
+            if (_activity is null)
+            {
+                return;
+            }
+
+            ActivityLogForm.ShowLog(this, _activity, _catalog);
+        };
         stack.Controls.Add(openLog);
 
         stack.Controls.Add(Spacer(16));
@@ -209,9 +223,12 @@ public sealed class AboutForm : Form
         return row;
     }
 
-    public static void ShowAbout(IWin32Window? owner)
+    public static void ShowAbout(
+        IWin32Window? owner,
+        ActivityJournal? activity = null,
+        HubCatalog? catalog = null)
     {
-        using var form = new AboutForm();
+        using var form = new AboutForm(activity, catalog);
         if (owner is not null)
         {
             form.ShowDialog(owner);

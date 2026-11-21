@@ -34,8 +34,12 @@ public sealed class TrayAppContext : ApplicationContext
         _credentialStore = new DpapiCredentialStore();
         _session = new VrchatApiSession(_credentialStore);
         _watcher = new VrchatLogDirectoryWatcher();
-        _orchestrator = new ProtectionOrchestrator(_watcher, _session, _settingsStore);
         _catalog = new HubCatalog(_session);
+        _orchestrator = new ProtectionOrchestrator(
+            _watcher,
+            _session,
+            _settingsStore,
+            worlds: _catalog.Worlds);
         _updates = new AppUpdateService();
         _orchestrator.StateChanged += (_, _) => BeginInvoke(UpdateTray);
         _orchestrator.ProtectionApplied += (_, e) => BeginInvoke(() => NotifyProtectionApplied(e));
@@ -53,8 +57,10 @@ public sealed class TrayAppContext : ApplicationContext
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add("Check for updates…", null, async (_, _) => await CheckForUpdatesInteractiveAsync());
         _menu.Items.Add("What's New…", null, async (_, _) => await ShowWhatsNewAsync());
-        _menu.Items.Add("Activity log…", null, (_, _) => ActivityLogForm.ShowLog(null));
-        _menu.Items.Add("About…", null, (_, _) => AboutForm.ShowAbout(null));
+        _menu.Items.Add("Activity log…", null, (_, _) =>
+            ActivityLogForm.ShowLog(null, _orchestrator.Activity, _catalog));
+        _menu.Items.Add("About…", null, (_, _) =>
+            AboutForm.ShowAbout(null, _orchestrator.Activity, _catalog));
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add("Exit", null, (_, _) => Exit());
 
@@ -460,7 +466,7 @@ public sealed class TrayAppContext : ApplicationContext
         try
         {
             var settings = _settingsStore.Load();
-            using var form = new ProtectionHubForm(settings, _catalog);
+            using var form = new ProtectionHubForm(settings, _catalog, _orchestrator.Activity);
             _hubForm = form;
             if (form.ShowDialog() != DialogResult.OK)
             {

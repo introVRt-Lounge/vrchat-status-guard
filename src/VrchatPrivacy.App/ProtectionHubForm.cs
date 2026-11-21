@@ -1,3 +1,4 @@
+using VrchatPrivacy.Core.Activity;
 using VrchatPrivacy.Core.Groups;
 using VrchatPrivacy.Core.Protection;
 using VrchatPrivacy.Core.Settings;
@@ -11,6 +12,7 @@ public sealed class ProtectionHubForm : Form
 {
     private readonly AppSettings _settings;
     private readonly HubCatalog _catalog;
+    private readonly ActivityJournal _activity;
     private readonly FlowLayoutPanel _protectedGrid = new()
     {
         Dock = DockStyle.Fill,
@@ -33,10 +35,11 @@ public sealed class ProtectionHubForm : Form
     private AddWorldFlowControl? _flow;
     private CancellationTokenSource? _cts;
 
-    public ProtectionHubForm(AppSettings settings, HubCatalog catalog)
+    public ProtectionHubForm(AppSettings settings, HubCatalog catalog, ActivityJournal? activity = null)
     {
         _settings = settings;
         _catalog = catalog;
+        _activity = activity ?? new ActivityJournal();
 
         Text = "Status Guard";
         FormBorderStyle = FormBorderStyle.Sizable;
@@ -67,7 +70,7 @@ public sealed class ProtectionHubForm : Form
             BackColor = Color.Transparent,
             TabStop = true,
         };
-        _aboutLink.LinkClicked += (_, _) => AboutForm.ShowAbout(this);
+        _aboutLink.LinkClicked += (_, _) => AboutForm.ShowAbout(this, _activity, _catalog);
 
         _logLink = new LinkLabel
         {
@@ -80,7 +83,7 @@ public sealed class ProtectionHubForm : Form
             BackColor = Color.Transparent,
             TabStop = true,
         };
-        _logLink.LinkClicked += (_, _) => ActivityLogForm.ShowLog(this);
+        _logLink.LinkClicked += (_, _) => ActivityLogForm.ShowLog(this, _activity, _catalog);
 
         _headerStack = new FlowLayoutPanel
         {

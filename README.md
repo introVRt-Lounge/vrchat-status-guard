@@ -60,7 +60,7 @@ Status Guard talks to VRChat through the **unofficial** community API. VRChat st
 1. Download **Setup.exe** from the latest [GitHub Release](https://github.com/introVRt-Lounge/vrchat-status-guard/releases) (Velopack - the only installer).
 2. Run it. Tray icon appears → **Login…** with your VRChat username/email, password, and 2FA if prompted.
 3. First run: a short **setup wizard** walks you through protecting one world (status required, group optional), then shows tray tips.
-4. Tray: **left-click** pauses/resumes; **double-click** opens (or foregrounds) the protection hub; right-click for **Activity log…** / **Check for updates…** / **What's New…** / **About…**.
+4. Tray: **left-click** pauses/resumes; **double-click** opens (or foregrounds) the protection hub; right-click for **Activity log…** (Basic cards / Debug raw log) / **Check for updates…** / **What's New…** / **About…**.
 5. Protection hub: protected worlds first (status + group). Expand **Add from recent** or **Add by ID/URL** for the same guided steps.
 6. Enter a protected world - status (and optional group) apply.
 
