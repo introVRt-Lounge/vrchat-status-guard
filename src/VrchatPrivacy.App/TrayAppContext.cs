@@ -67,8 +67,9 @@ public sealed class TrayAppContext : ApplicationContext
             Visible = true,
         };
         _tray.MouseClick += OnTrayMouseClick;
+        // MouseDoubleClick only - also hooking DoubleClick queued a second EditSettings
+        // after ShowDialog returned, so Done had to be clicked twice.
         _tray.MouseDoubleClick += OnTrayMouseDoubleClick;
-        _tray.DoubleClick += OnTrayMouseDoubleClick;
 
         _ = StartAsync();
     }
@@ -450,6 +451,8 @@ public sealed class TrayAppContext : ApplicationContext
             return;
         }
 
+        // Set before ShowDialog so a second tray double-click (or leftover event)
+        // cannot nest another modal hub.
         _hubOpen = true;
         Interlocked.Increment(ref _pendingClickGeneration);
         try
@@ -470,7 +473,10 @@ public sealed class TrayAppContext : ApplicationContext
         {
             _hubForm = null;
             _hubOpen = false;
-            _suppressSingleClickUntilUtc = DateTime.UtcNow.AddMilliseconds(500);
+            // Swallow trailing tray clicks that fire as the modal closes.
+            _suppressSingleClickUntilUtc = DateTime.UtcNow.AddMilliseconds(
+                Math.Max(SystemInformation.DoubleClickTime * 2, 800));
+            Interlocked.Increment(ref _pendingClickGeneration);
         }
     }
 
