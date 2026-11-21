@@ -2,6 +2,7 @@ using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using VrchatPrivacy.Core.Settings;
 
 namespace VrchatPrivacy.Core.Auth;
 
@@ -12,10 +13,8 @@ public sealed class DpapiCredentialStore : ICredentialStore
 
     public DpapiCredentialStore(string? directory = null)
     {
-        var root = directory ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "introVRt Lounge",
-            "VRChat Status Guard");
+        AppDataPaths.MigrateFromLegacyIfNeeded();
+        var root = directory ?? AppDataPaths.Root;
         Directory.CreateDirectory(root);
         _path = Path.Combine(root, "auth.bin");
     }

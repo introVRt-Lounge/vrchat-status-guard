@@ -35,10 +35,7 @@ public static class AppLog
             return;
         }
 
-        var dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "introVRt Lounge",
-            "VRChat Status Guard");
+        var dir = Settings.AppDataPaths.Root;
         Directory.CreateDirectory(dir);
         _path = Path.Combine(dir, "guard.log");
     }

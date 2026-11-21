@@ -168,12 +168,18 @@ public sealed class AppSettingsStore
 
     public AppSettingsStore(string? path = null)
     {
-        var root = path ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "introVRt Lounge",
-            "VRChat Status Guard");
-        Directory.CreateDirectory(root);
-        _path = Path.Combine(root, "settings.json");
+        if (path is null)
+        {
+            AppDataPaths.MigrateFromLegacyIfNeeded();
+            var root = AppDataPaths.Root;
+            Directory.CreateDirectory(root);
+            _path = Path.Combine(root, "settings.json");
+        }
+        else
+        {
+            Directory.CreateDirectory(path);
+            _path = Path.Combine(path, "settings.json");
+        }
     }
 
     public string FilePath => _path;

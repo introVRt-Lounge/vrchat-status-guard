@@ -29,9 +29,7 @@ public sealed class WorldInfoLookup : IDisposable
     public WorldInfoLookup(string? cacheDirectory = null, IVRChat? sharedClient = null)
     {
         var root = cacheDirectory ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "introVRt Lounge",
-            "VRChat Status Guard");
+            Settings.AppDataPaths.Root);
         Directory.CreateDirectory(root);
         _cachePath = Path.Combine(root, "world-cache.json");
         LoadCache();
