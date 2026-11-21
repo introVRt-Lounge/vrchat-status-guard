@@ -96,6 +96,18 @@ public sealed class AboutForm : Form
         stack.Controls.Add(LinkRow("Citation (API specification)", LoungeLinks.VrchatApiSpecification));
 
         stack.Controls.Add(Spacer(16));
+        stack.Controls.Add(Section("Activity log"));
+        stack.Controls.Add(DpiUtil.AutoLabel(
+            "See world joins, protection decisions, and status/group applies with timestamps.",
+            VrcTheme.BodyFont,
+            VrcTheme.TextPrimary,
+            maxWidth: 460));
+        var openLog = new Button { Text = "Open activity log…", AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
+        VrcTheme.StyleGhostButton(openLog);
+        openLog.Click += (_, _) => ActivityLogForm.ShowLog(this);
+        stack.Controls.Add(openLog);
+
+        stack.Controls.Add(Spacer(16));
         stack.Controls.Add(Section("Feedback"));
         stack.Controls.Add(DpiUtil.AutoLabel(
             "Bugs and ideas go to GitHub Issues. Pull requests are welcome - see CONTRIBUTING in the repo.",

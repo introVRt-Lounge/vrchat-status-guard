@@ -56,6 +56,7 @@
 - [x] [#51](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/51) Status apply priority over deferred repping
 - [x] [#52](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/52) Document Tupper 60s rate limit in README and About
 - [x] [#53](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/53) Transparent About/README logo (no white square)
+- [x] [#54](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/54) In-app activity log viewer
 - [ ] End-user path confirm: enter protected world → status becomes orange/red in-game
 - [ ] Bounded backoff UI polish on repeated auth/network failure
 - [ ] Optional: store TOTP secret for seamless re-login (today: interactive OTP)

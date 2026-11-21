@@ -40,3 +40,7 @@ That is often the intentional **~60s mutation budget** from VRChat team (Tupper)
 guidance for unofficial API use - not a hung tray. See README
 [Limitations](README.md#limitations) and tray → **About…**. Status is applied
 before optional group repping; world hops do not reset the timer.
+
+Use tray → **Activity log…** (or hub → Activity log) to see joins, decisions,
+and `ApplyStatus` lines with timestamps. The same file lives at
+`%LocalAppData%\introVRt Lounge\VRChat Status Guard\guard.log`.

@@ -7,10 +7,31 @@ using VrchatPrivacy.Core.Worlds;
 
 namespace VrchatPrivacy.Core.Tests;
 
-public class ProtectionOrchestratorTests
+public class ProtectionOrchestratorTests : IDisposable
 {
     private const string HomeId = AppSettings.DefaultProtectedWorldId;
     private const string SleepId = "wrld_aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    private readonly string _logDir;
+
+    public ProtectionOrchestratorTests()
+    {
+        _logDir = Path.Combine(Path.GetTempPath(), "vsg-orch-log-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_logDir);
+        VrchatPrivacy.Core.Logging.AppLog.SetDirectoryOverride(_logDir);
+    }
+
+    public void Dispose()
+    {
+        VrchatPrivacy.Core.Logging.AppLog.SetDirectoryOverride(null);
+        try
+        {
+            Directory.Delete(_logDir, recursive: true);
+        }
+        catch
+        {
+            // best-effort
+        }
+    }
 
     [Fact]
     public async Task ConcurrentJoinWhileBusy_AppliesLatestWorld()

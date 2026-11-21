@@ -53,6 +53,7 @@ public sealed class TrayAppContext : ApplicationContext
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add("Check for updates…", null, async (_, _) => await CheckForUpdatesInteractiveAsync());
         _menu.Items.Add("What's New…", null, async (_, _) => await ShowWhatsNewAsync());
+        _menu.Items.Add("Activity log…", null, (_, _) => ActivityLogForm.ShowLog(null));
         _menu.Items.Add("About…", null, (_, _) => AboutForm.ShowAbout(null));
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add("Exit", null, (_, _) => Exit());
