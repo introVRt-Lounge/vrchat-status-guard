@@ -25,6 +25,7 @@ public sealed class TrayAppContext : ApplicationContext
     private DateTime _suppressSingleClickUntilUtc = DateTime.MinValue;
     private int _pendingClickGeneration;
     private bool _hubOpen;
+    private ProtectionHubForm? _hubForm;
 
     public TrayAppContext()
     {
@@ -112,14 +113,11 @@ public sealed class TrayAppContext : ApplicationContext
 
     private void OnTrayMouseDoubleClick(object? sender, EventArgs e)
     {
-        VrchatPrivacy.Core.Logging.AppLog.Info("Tray DoubleClick -> hub");
+        VrchatPrivacy.Core.Logging.AppLog.Info($"Tray DoubleClick -> hub (open={_hubOpen})");
         Interlocked.Increment(ref _pendingClickGeneration); // cancel any pending pause
         _suppressSingleClickUntilUtc = DateTime.UtcNow.AddMilliseconds(
             Math.Max(SystemInformation.DoubleClickTime * 2, 800));
-        if (!_hubOpen)
-        {
-            EditSettings();
-        }
+        EditSettings();
     }
 
     private async Task StartAsync()
@@ -448,6 +446,7 @@ public sealed class TrayAppContext : ApplicationContext
     {
         if (_hubOpen)
         {
+            BringHubToFront();
             return;
         }
 
@@ -457,6 +456,7 @@ public sealed class TrayAppContext : ApplicationContext
         {
             var settings = _settingsStore.Load();
             using var form = new ProtectionHubForm(settings, _catalog);
+            _hubForm = form;
             if (form.ShowDialog() != DialogResult.OK)
             {
                 return;
@@ -468,9 +468,33 @@ public sealed class TrayAppContext : ApplicationContext
         }
         finally
         {
+            _hubForm = null;
             _hubOpen = false;
             _suppressSingleClickUntilUtc = DateTime.UtcNow.AddMilliseconds(500);
         }
+    }
+
+    private void BringHubToFront()
+    {
+        var form = _hubForm;
+        if (form is null || form.IsDisposed)
+        {
+            return;
+        }
+
+        VrchatPrivacy.Core.Logging.AppLog.Info("Tray: bringing open hub to front");
+        if (form.WindowState == FormWindowState.Minimized)
+        {
+            form.WindowState = FormWindowState.Normal;
+        }
+
+        form.Show();
+        form.Activate();
+        form.BringToFront();
+        // WinForms TopMost bounce helps reclaim focus from other apps.
+        form.TopMost = true;
+        form.TopMost = false;
+        form.Focus();
     }
 
     private void UpdateTray()
