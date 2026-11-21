@@ -58,11 +58,12 @@ public sealed class TrayAppContext : ApplicationContext
         _tray = new NotifyIcon
         {
             Text = "VRChat Status Guard",
-            Visible = true,
-            Icon = SystemIcons.Shield,
+            // Clone SystemIcons - assigning them live often yields a blank tray glyph.
+            Icon = TrayIcons.Default,
             // Keep ContextMenuStrip for right-click. Left single-click is MouseClick;
             // NotifyIcon skips MouseClick on the second half of a double-click (see WinForms source).
             ContextMenuStrip = _menu,
+            Visible = true,
         };
         _tray.MouseClick += OnTrayMouseClick;
         _tray.MouseDoubleClick += OnTrayMouseDoubleClick;
@@ -479,15 +480,11 @@ public sealed class TrayAppContext : ApplicationContext
         _statusItem.Text = $"Status: {state} — {Trim(message, 60)}";
         _pauseItem.Text = _orchestrator.IsPaused ? "Resume protection" : "Pause protection";
         _tray.Text = Trim($"Status Guard: {state}", 63);
-        _tray.Icon = state switch
+        _tray.Icon = TrayIcons.ForState(state);
+        if (!_tray.Visible)
         {
-            ProtectionAppState.Working => SystemIcons.Shield,
-            ProtectionAppState.Paused => SystemIcons.Warning,
-            ProtectionAppState.Failed => SystemIcons.Error,
-            ProtectionAppState.Disconnected => SystemIcons.Error,
-            ProtectionAppState.AwaitingLogin => SystemIcons.Question,
-            _ => SystemIcons.Application,
-        };
+            _tray.Visible = true;
+        }
     }
 
     private static string Trim(string value, int max) =>

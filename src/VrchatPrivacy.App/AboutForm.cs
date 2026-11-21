@@ -65,12 +65,8 @@ public sealed class AboutForm : Form
             maxWidth: 460));
         stack.Controls.Add(LinkRow("Website", LoungeLinks.Website));
         stack.Controls.Add(LinkRow("Discord", LoungeLinks.DiscordInvite));
+        stack.Controls.Add(LinkRow("VRChat group", LoungeLinks.VrchatGroup));
         stack.Controls.Add(LinkRow("GitHub org", LoungeLinks.GitHubOrg));
-        stack.Controls.Add(DpiUtil.AutoLabel(
-            "In VRChat: search for introVRt Lounge in Groups, or ask on Discord for the current group link.",
-            VrcTheme.SmallFont,
-            VrcTheme.TextMuted,
-            maxWidth: 460));
 
         stack.Controls.Add(Spacer(16));
         stack.Controls.Add(Section("Feedback"));
