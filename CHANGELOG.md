@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Release ship train: push to `main` auto-publishes Velopack again (tag-only gate after #37/#43 left users on stale v0.1.6 while main moved).
+- Auto-release is **major/minor only** (conventional `feat` / breaking); **patch** via `workflow_dispatch` on demand (#77).
 
 ### Changed
 

@@ -17,7 +17,7 @@ Runners:
 - **`windows-latest`**: test, security-audit, installer (Velopack pack artifact)
 - **`ubuntu-latest`**: gitleaks + Semgrep only (Linux container images; not the product runtime)
 
-Release: `.github/workflows/release.yml` - **push to `main`** auto-bumps patch from latest `v*` tag and publishes Velopack Setup.exe (also `workflow_dispatch` + optional `v*` tags). Tag-only gating without auto-tag starved ships (#72); do not reintroduce tag-only without a release-please/auto-tag job.
+Release: `.github/workflows/release.yml` - **push to `main`** auto-publishes only for conventional **major/minor** (`breaking` / `feat`). **Patch** (`fix`, `docs`, `chore`, `ops`, …) is **on demand** via `gh workflow run release.yml --ref main` (empty input = patch bump; or `-f version=X.Y.Z`). Optional `v*` tags. Do not reintroduce tag-only without an auto-tagger (#72).
 
 ## Branch protection (`main`)
 
