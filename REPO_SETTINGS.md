@@ -6,6 +6,7 @@
 | Name | `vrchat-status-guard` |
 | Visibility | **Public** |
 | Default branch | `main` |
+| Org plan | Free (public Tier H + branch protection available) |
 | Profile | Public OSS - Velopack Setup.exe is the only installer |
 
 ## CI
@@ -18,23 +19,42 @@ Runners:
 
 Release: `.github/workflows/release.yml` on `v*` tags - Velopack only (no Inno).
 
-Public repo: enable branch protection with required check **`ci`** when the plan allows. Dependabot + `automerge` label use embedded `merge-on-green` on green `ci`.
+## Branch protection (`main`)
+
+| Setting | Value |
+|---------|-------|
+| Required status checks | **`ci`** (strict / up to date) |
+| Enforce admins | true |
+| Force push / delete | blocked |
+| Allow auto-merge | true |
+| Delete branch on merge | true |
+
+Public free orgs **can** protect branches - required after private→public flip (perfect-github Tier H).
+
+## Code security (Tier H probe 2026-11-22)
+
+Screenshot row → position:
+
+| UI control | Required (public) | This repo | How |
+|-----------|-------------------|-----------|-----|
+| Security policy | On | **Enabled** (`SECURITY.md`) | In-repo |
+| Security advisories | On | **Enabled** | Platform default |
+| Private vulnerability reporting | **On** | **Enabled** | `PUT …/private-vulnerability-reporting` |
+| Dependabot alerts | On | **Enabled** | `PUT …/vulnerability-alerts` |
+| Dependabot security updates | On | **Enabled** | `PUT …/automated-security-fixes` |
+| Code scanning alerts (CodeQL) | On | **Configured** (csharp + actions) | `PATCH …/code-scanning/default-setup` |
+| Secret scanning alerts | On | **Enabled** | `PATCH` `security_and_analysis.secret_scanning` |
+| Secret push protection | On | **Enabled** | `PATCH` `…secret_scanning_push_protection` |
+| Code quality findings | On when REST allows | **Configured** (csharp) | `PATCH …/code-quality/setup` |
+| Code coverage (Code Quality) | Optional | Operator UI if wanted | Settings → Code quality → Coverage (no REST) |
+| Non-provider secret patterns / validity checks | Optional | Off | Leave unless noise is wanted |
+
+**SECURITY.md** leads with [Report a vulnerability](https://github.com/introVRt-Lounge/vrchat-status-guard/security/advisories/new); email is fallback only.
 
 ## Dependabot
 
 - `.github/dependabot.yml` (nuget + github-actions, 7-day cooldown)
-- PRs auto-merge on green `ci`
-- Vulnerability alerts + security updates enabled via API at bootstrap.
-
-## Platform security (probe and record)
-
-| Control | Expected (public) | Notes |
-|---------|-------------------|-------|
-| Secret scanning / push protection | Enable in repo settings | CI still runs gitleaks |
-| CodeQL / Code Quality | Optional | Document if enabled |
-| Dependabot alerts | On | Via API at bootstrap |
-
-Last probe: 2026-11-21 (public; docs sweep #64).
+- Native auto-merge path available now that `ci` is a required check; embedded `merge-on-green` remains as belt-and-braces
 
 ## Git hygiene
 
@@ -43,3 +63,11 @@ Default PR path: issue → branch → PR with `Fixes #N` → squash merge. See [
 
 Local iteration install: `.\scripts\deploy-local-install.ps1` (Startup Run target, not `bin\Release`).
 Release pack: `.\scripts\build-velopack.ps1 -Version <semver>` (CI smoke uses `0.1.0`).
+
+## Not in scope for this product
+
+| Item | Position |
+|------|----------|
+| GitHub Pages / Tier E docs site | Skip - no library docs site; marketing is introvrtlounge.com |
+| FUNDING.yml / Sponsor button | Optional later - not required for Status Guard |
+| Social preview Open Graph | Optional polish - add when cutting a marketed release |

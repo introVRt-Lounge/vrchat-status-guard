@@ -69,6 +69,7 @@
 - [x] [#62](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/62) Removed ClientUnconfirmed confirm chore (API apply stays Working)
 - [x] [#63](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/63) Tray status uses group/world names not IDs
 - [x] [#64](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/64) Doc sweep: CONTRIBUTING/SUPPORT/refs vs current scripts
+- [x] [#66](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/66) Public Tier H: PVR, secret scan, CodeQL, Code Quality, branch protection
 - [ ] End-user path confirm: enter protected world → status becomes orange/red in-game (blocked on VRChat client sync)
 - [ ] Bounded backoff UI polish on repeated auth/network failure
 - [ ] Optional: store TOTP secret for seamless re-login (today: interactive OTP)
