@@ -75,9 +75,9 @@
 - [x] [#71](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/71) Cut catch-up release from main (ship gap vs v0.1.6) → v0.1.7
 - [x] [#72](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/72) Restore auto-release on main + happy-git ship gate → v0.1.8
 - [x] [#77](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/77) Auto-release major/minor only; patch on demand
-- [ ] [#80](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/80) Branded tray icons (SystemIcons.Shield blank when installed)
-- [ ] [#81](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/81) Populate GitHub release body for What's New
-- [ ] [#82](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/82) Rename Core.Tests away from Privacy branding
+- [x] [#80](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/80) Branded tray icons (SystemIcons.Shield blank when installed)
+- [x] [#81](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/81) Populate GitHub release body for What's New
+- [x] [#82](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/82) Rename Core.Tests away from Privacy branding
 - [ ] End-user path confirm: enter protected world → status becomes orange/red in-game (blocked on VRChat client sync)
 - [ ] Bounded backoff UI polish on repeated auth/network failure
 - [ ] Optional: store TOTP secret for seamless re-login (today: interactive OTP)
