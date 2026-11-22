@@ -1,6 +1,6 @@
 # Research: VRChat logs and status API
 
-Last verified: 2026-11-20 (this Windows PC + public docs / NuGet).
+Last verified: 2026-11-21 (this Windows PC + public docs / NuGet + live API vs client desync).
 
 ## Log location (PC)
 
@@ -49,6 +49,18 @@ Protection applies `ask me`, `busy`, or (explicit per-world opt-in) `join me`. N
 
 Update path: `PUT /api/1/users/{userId}` with `{ "status": "ask me" }` (auth cookie required).
 
+## API vs live client (kill criterion for privacy)
+
+Verified 2026-11-21: after Status Guard / website / VRCX set `ask me`, `GET /auth/user` stays
+`ask me`, but the running game client can keep painting **Join Me** and friends can still get a
+Join path for minutes. There is no OSC or supported local force-refresh.
+
+Primary citation:
+
+- [VRC Rest API / Websocket issues - Status and Avatar Changes Are Extremely Unreliable](https://feedback.vrchat.com/open-beta/p/vrc-rest-api-websocket-issues-since-years-status-and-avatar-changes-are-extremel)
+
+Product implication: treat API success as account-record success only. Invite / Invite+ remains the hard door. Encourage upvotes on that Canny post.
+
 ## Auth / 2FA (.NET)
 
 Package: [`VRChat.API` 2.24.0](https://www.nuget.org/packages/VRChat.API/2.24.0) (net8.0).
@@ -94,5 +106,6 @@ Sources: [Get User Groups](https://vrchat.community/reference/get-user-groups), 
 | Log format drift | Join regex miss rate >5% on a known session → pause protection, ship parser fix |
 | Rate limit / Cloudflare | Repeated 429 → exponential backoff capped; surface Disconnected/Failed in tray |
 | Brief blue exposure | Accepted in v1; not a kill - document only |
+| API ask me / client still Join Me | Platform bug - not fixable in-app; document + upvote VRChat feedback |
 
-Cheapest falsification for milestone 1: run Core parser against a fresh live log after one world hop; login once; `PUT` orange; confirm friends list / Quick Menu shows Ask Me within ~60s.
+Cheapest falsification for API write: run Core parser against a fresh live log after one world hop; login once; `PUT` orange; confirm `GET /auth/user` shows `ask me`. Do **not** treat Quick Menu colour alone as proof the PUT failed - and do not treat API success alone as in-game privacy.

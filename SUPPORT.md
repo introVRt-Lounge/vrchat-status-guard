@@ -5,11 +5,13 @@
 Open a [GitHub Issue](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/new/choose)
 and tag it with `question`. Please include:
 
-- App version (installer filename or git tag, e.g. `v0.1.5`)
+- App version (About dialog, installer filename, or git tag, e.g. `v0.2.0`)
 - Windows version (`winver`)
 - Whether you are logged in (no passwords, please)
 - What you expected vs what happened
-- Relevant lines from `%LocalAppData%\VRChat Status Guard\logs\` (redact usernames if you want)
+- Relevant lines from
+  `%LOCALAPPDATA%\introVRt Lounge\VRChat Status Guard\guard.log`
+  (redact usernames if you want)
 
 ## I found a bug
 
@@ -31,16 +33,25 @@ usually out of scope.
 - Install from the latest GitHub Release **Setup.exe** only (Velopack).
 - Use tray → **Check for updates…** after install; do not mix side-by-side copies.
 - Self-contained build: you should not need a separate .NET runtime.
-- Auth cookies live under `%LocalAppData%\VRChat Status Guard\` (migrated from
-  the older Privacy Guard folder when present).
+- Auth cookies / settings / logs live under
+  `%LOCALAPPDATA%\introVRt Lounge\VRChat Status Guard\`
+  (migrated from the older Privacy Guard folder when present).
+- Local maintainers: after building from source, run
+  `.\scripts\deploy-local-install.ps1` so Startup matches the tree you just built
+  (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 
-## Status took a while / stayed the same for under a minute
+## Status took a while / stayed the same
 
-That is often the intentional **~60s mutation budget** from VRChat team (Tupper)
-guidance for unofficial API use - not a hung tray. See README
-[Limitations](README.md#limitations) and tray → **About…**. Status is applied
-before optional group repping; world hops do not reset the timer.
+Two different things get confused:
 
-Use tray → **Activity log…** (or hub → Activity log) to see joins, decisions,
-and `ApplyStatus` lines with timestamps. The same file lives at
-`%LocalAppData%\introVRt Lounge\VRChat Status Guard\guard.log`.
+1. **~60s mutation budget** (Tupper / unofficial API) - intentional spacing between
+   status/group writes. See README [Rate limit (Tupper)](README.md#rate-limit-tupper)
+   and tray → **About…**. Status is applied before optional group repping; world hops
+   do not reset the timer.
+2. **API wrote Ask Me but Quick Menu / friends still show Join Me** - known VRChat
+   client desync. Status Guard cannot force the live client. Read
+   [Does this actually work?](README.md#does-this-actually-work) and upvote
+   [VRChat's feedback post](https://feedback.vrchat.com/open-beta/p/vrc-rest-api-websocket-issues-since-years-status-and-avatar-changes-are-extremel).
+
+Use tray → **Activity log…** (or hub → Activity log) for joins, decisions, and
+`ApplyStatus` lines. Same data: `guard.log` and `activity.jsonl` in the AppData folder above.

@@ -18,29 +18,28 @@ Runners:
 
 Release: `.github/workflows/release.yml` on `v*` tags - Velopack only (no Inno).
 
-Free private: branch protection / required checks often unavailable. Dependabot + `automerge` label use embedded `merge-on-green` on green `ci`.
+Public repo: enable branch protection with required check **`ci`** when the plan allows. Dependabot + `automerge` label use embedded `merge-on-green` on green `ci`.
 
 ## Dependabot
 
 - `.github/dependabot.yml` (nuget + github-actions, 7-day cooldown)
 - PRs auto-merge on green `ci`
-- Enable vulnerability alerts + security updates via API when auth available:
-
-```bash
-gh api -X PUT repos/introVRt-Lounge/vrchat-status-guard/vulnerability-alerts
-gh api -X PUT repos/introVRt-Lounge/vrchat-status-guard/automated-security-fixes
-```
+- Vulnerability alerts + security updates enabled via API at bootstrap.
 
 ## Platform security (probe and record)
 
-| Control | Expected on free private | Notes |
-|---------|--------------------------|-------|
-| Secret scanning / push protection | Often unavailable | Rely on gitleaks CI + local discipline |
-| CodeQL / Code Quality | May 403 | Document skip if REST fails |
-| Dependabot alerts | Enable via API | See above |
+| Control | Expected (public) | Notes |
+|---------|-------------------|-------|
+| Secret scanning / push protection | Enable in repo settings | CI still runs gitleaks |
+| CodeQL / Code Quality | Optional | Document if enabled |
+| Dependabot alerts | On | Via API at bootstrap |
 
-Last probe: 2026-11-20 (repo created; Dependabot vulnerability alerts + security updates enabled via API; `automerge` label created).
+Last probe: 2026-11-21 (public; docs sweep #64).
 
 ## Git hygiene
 
-Default PR path; solo direct-to-`main` allowed during bootstrap with wrap-up (CI green, TODO current).
+Default PR path: issue → branch → PR with `Fixes #N` → squash merge. See [AGENTS.md](AGENTS.md)
+(**issues-first** + **happy git place**: clean `main` only between tasks).
+
+Local iteration install: `.\scripts\deploy-local-install.ps1` (Startup Run target, not `bin\Release`).
+Release pack: `.\scripts\build-velopack.ps1 -Version <semver>` (CI smoke uses `0.1.0`).
