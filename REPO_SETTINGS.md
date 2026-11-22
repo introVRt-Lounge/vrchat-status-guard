@@ -17,7 +17,7 @@ Runners:
 - **`windows-latest`**: test, security-audit, installer (Velopack pack artifact)
 - **`ubuntu-latest`**: gitleaks + Semgrep only (Linux container images; not the product runtime)
 
-Release: `.github/workflows/release.yml` on `v*` tags - Velopack only (no Inno).
+Release: `.github/workflows/release.yml` - **push to `main`** auto-bumps patch from latest `v*` tag and publishes Velopack Setup.exe (also `workflow_dispatch` + optional `v*` tags). Tag-only gating without auto-tag starved ships (#72); do not reintroduce tag-only without a release-please/auto-tag job.
 
 ## Branch protection (`main`)
 

@@ -1,23 +1,26 @@
 name: Release
 
-# Tag-gated: push v1.2.3 (or workflow_dispatch with version input).
-# Single installer path: Velopack Setup.exe + update packages only.
+# Product ship train: every push to main publishes a Velopack GitHub Release.
+# Also: workflow_dispatch (optional version) and explicit v* tags.
+# Tag-only gating without an auto-tagger starved ships after #37/#43 - see #72.
 on:
   push:
+    branches: [main]
     tags:
       - "v*"
   workflow_dispatch:
     inputs:
       version:
-        description: "Semver without leading v (e.g. 0.2.0). Creates tag v{version} assets."
-        required: true
+        description: "Optional semver without leading v (e.g. 0.1.7). Empty = bump patch from latest v* tag."
+        required: false
         type: string
+        default: ""
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-tags
+  group: release-ship
   cancel-in-progress: false
 
 env:
@@ -29,6 +32,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -37,24 +42,64 @@ jobs:
       - name: Resolve version
         id: ver
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          $ErrorActionPreference = "Stop"
+
+          # Already shipped this exact commit? Skip (re-run / double trigger).
+          $tagsHere = @(git tag --points-at "$env:GITHUB_SHA" "v*")
+          if ($tagsHere.Count -gt 0) {
+            Write-Host "Commit already tagged: $($tagsHere -join ', '). Skipping release."
+            "skip=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            return
+          }
+
+          $v = $null
           if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-            $v = "${{ inputs.version }}".TrimStart('v')
-          } else {
+            $raw = "${{ inputs.version }}".Trim()
+            if ($raw) { $v = $raw.TrimStart('v') }
+          }
+          elseif ("${{ github.ref_type }}" -eq "tag") {
             $v = "${{ github.ref_name }}".TrimStart('v')
           }
-          if ($v -notmatch '^\d+\.\d+\.\d+') {
+
+          if (-not $v) {
+            git fetch --tags --force origin
+            $latest = git tag -l "v*" --sort=-v:refname | Select-Object -First 1
+            if (-not $latest) {
+              $v = "0.1.0"
+            }
+            else {
+              $parts = $latest.TrimStart('v').Split('.')
+              if ($parts.Count -lt 3) { throw "Latest tag '$latest' is not semver X.Y.Z" }
+              $patch = [int]$parts[2] + 1
+              $v = "$($parts[0]).$($parts[1]).$patch"
+              Write-Host "Bumped $latest -> v$v"
+            }
+          }
+
+          if ($v -notmatch '^\d+\.\d+\.\d+$') {
             throw "Version must look like 0.2.0 (got '$v')"
           }
+
+          # Bail if tag already exists (race with another ship).
+          if (git rev-parse -q --verify "refs/tags/v$v" 2>$null) {
+            throw "Tag v$v already exists but does not point at this commit. Abort."
+          }
+
+          "skip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "tag=v$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          Write-Host "Release version $v"
+          Write-Host "Release version $v @ $env:GITHUB_SHA"
 
       - name: Install vpk
+        if: steps.ver.outputs.skip != 'true'
         shell: pwsh
         run: dotnet tool install -g vpk --version ${{ env.VELOPACK_VERSION }}
 
       - name: Download previous Velopack release (delta baseline)
+        if: steps.ver.outputs.skip != 'true'
         continue-on-error: true
         shell: pwsh
         run: |
@@ -64,6 +109,7 @@ jobs:
             --outputDir artifacts/velopack
 
       - name: Publish + Velopack pack
+        if: steps.ver.outputs.skip != 'true'
         shell: pwsh
         run: |
           .\scripts\build-velopack.ps1 `
@@ -73,6 +119,7 @@ jobs:
             -SkipToolInstall
 
       - name: Upload Velopack artifact
+        if: steps.ver.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: VrchatStatusGuard-Setup
@@ -80,6 +127,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub Release (Velopack)
+        if: steps.ver.outputs.skip != 'true'
         shell: pwsh
         run: |
           vpk upload github `
@@ -88,4 +136,5 @@ jobs:
             --outputDir artifacts/velopack `
             --tag ${{ steps.ver.outputs.tag }} `
             --releaseName "VRChat Status Guard ${{ steps.ver.outputs.tag }}" `
+            --targetCommitish ${{ github.sha }} `
             --publish

@@ -135,3 +135,7 @@ jobs:
           else
             echo "PR already $STATE, skipping"
           fi
+          # GITHUB_TOKEN merges do not re-trigger workflows on main (anti-loop).
+          # Explicitly kick Release so dependabot/automerge still ships Setup.exe.
+          gh workflow run release.yml --repo "${{ github.repository }}" --ref main
+          echo "Dispatched Release workflow on main"

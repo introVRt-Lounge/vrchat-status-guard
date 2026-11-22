@@ -33,14 +33,16 @@ After local fixes, deploy into that folder:
 
 ### Release pack (maintainers)
 
-Velopack `Setup.exe` is the only installer. Pack when cutting a release (CI/release
-workflow also packs on `v*` tags):
+Velopack `Setup.exe` is the only installer. Merges to `main` auto-publish a GitHub
+Release (patch bump from latest `v*` tag). Manual pack / dispatch:
 
 ```powershell
 .\scripts\build-velopack.ps1 -Version 0.2.0
+gh workflow run release.yml --ref main              # auto bump
+gh workflow run release.yml --ref main -f version=0.2.0
 ```
 
-Default script `-Version` is `0.1.0` for CI smoke; ship real semver on tags.
+Default script `-Version` is `0.1.0` for CI smoke only.
 
 ## Git hygiene
 

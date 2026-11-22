@@ -45,8 +45,9 @@ Default resting state for this repo is **clean main only**. Before claiming idle
 4. **PRs:** no open PRs left unmerged that this session created or was driving - merge (when green + operator OK) or close with reason.
 5. **Issues:** close GitHub issues this session actually finished (`Fixes #N` / `gh issue close`). Do not leave "done in code, open on GitHub."
 6. **Local branches:** delete merged topic branches locally and on origin after merge.
+7. **Ship:** after product merges to `main`, confirm a **GitHub Release** exists for that HEAD (or newer). `Release` runs on push to `main` (auto patch bump). If missing, `gh workflow run release.yml --ref main` (optional `-f version=X.Y.Z`). Do not call the session done while users on "latest release" are stuck on stale builds. Local `deploy-local-install.ps1` is not a substitute for shipping.
 
-**Not clean** = still on a feature branch, dirty tree, stray worktree, open PR, or finished work still filed as an open issue. Say so explicitly; then drive back to happy git place unless the operator parks the work.
+**Not clean** = still on a feature branch, dirty tree, stray worktree, open PR, finished work still filed as an open issue, or **main ahead of the latest GitHub Release with no Release run in flight**. Say so explicitly; then drive back to happy git place unless the operator parks the work.
 
 ## Design invariants
 
