@@ -47,11 +47,16 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
+          # git CLI non-zero exits must not abort under Stop (missing tags are normal).
+          $prevEap = $ErrorActionPreference
+          $ErrorActionPreference = "Continue"
+
           # Already shipped this exact commit? Skip (re-run / double trigger).
-          $tagsHere = @(git tag --points-at "$env:GITHUB_SHA" "v*")
+          $tagsHere = @(git tag --points-at "$env:GITHUB_SHA" --list "v*")
           if ($tagsHere.Count -gt 0) {
             Write-Host "Commit already tagged: $($tagsHere -join ', '). Skipping release."
             "skip=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            $ErrorActionPreference = $prevEap
             return
           }
 
@@ -65,7 +70,7 @@ jobs:
           }
 
           if (-not $v) {
-            git fetch --tags --force origin
+            git fetch --tags --force origin 2>&1 | Out-Host
             $latest = git tag -l "v*" --sort=-v:refname | Select-Object -First 1
             if (-not $latest) {
               $v = "0.1.0"
@@ -84,10 +89,12 @@ jobs:
           }
 
           # Bail if tag already exists (race with another ship).
-          if (git rev-parse -q --verify "refs/tags/v$v" 2>$null) {
+          git rev-parse -q --verify "refs/tags/v$v" 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
             throw "Tag v$v already exists but does not point at this commit. Abort."
           }
 
+          $ErrorActionPreference = $prevEap
           "skip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "tag=v$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
