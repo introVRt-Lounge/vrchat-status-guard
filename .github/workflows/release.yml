@@ -57,7 +57,7 @@ jobs:
             Write-Host "Commit already tagged: $($tagsHere -join ', '). Skipping release."
             "skip=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
             $ErrorActionPreference = $prevEap
-            return
+            exit 0
           }
 
           $v = $null
@@ -99,6 +99,8 @@ jobs:
           "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "tag=v$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "Release version $v @ $env:GITHUB_SHA"
+          # Native git miss leaves LASTEXITCODE=1; Actions treats that as step failure.
+          exit 0
 
       - name: Install vpk
         if: steps.ver.outputs.skip != 'true'
