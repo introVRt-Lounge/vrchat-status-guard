@@ -1,6 +1,6 @@
 using VrchatPrivacy.Core.Logging;
 
-namespace VrchatPrivacy.Core.Tests;
+namespace VrchatStatusGuard.Core.Tests;
 
 [Collection("AppLogSerial")]
 public class AppLogTests : IDisposable

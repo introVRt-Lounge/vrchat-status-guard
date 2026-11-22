@@ -3,7 +3,7 @@ using VrchatPrivacy.Core.Protection;
 using VrchatPrivacy.Core.Settings;
 using VrchatPrivacy.Core.Worlds;
 
-namespace VrchatPrivacy.Core.Tests;
+namespace VrchatStatusGuard.Core.Tests;
 
 public class ProtectionDecisionTests
 {

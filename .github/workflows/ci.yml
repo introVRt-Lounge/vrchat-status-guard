@@ -28,7 +28,7 @@ jobs:
           dotnet-version: "8.0.x"
       - name: Test
         run: >
-          dotnet test tests/VrchatPrivacy.Core.Tests/VrchatPrivacy.Core.Tests.csproj
+          dotnet test tests/VrchatStatusGuard.Core.Tests/VrchatStatusGuard.Core.Tests.csproj
           -c Release --verbosity normal
 
   installer:

@@ -1,7 +1,7 @@
 using VrchatPrivacy.Core.Protection;
 using VrchatPrivacy.Core.Settings;
 
-namespace VrchatPrivacy.Core.Tests;
+namespace VrchatStatusGuard.Core.Tests;
 
 public class AppSettingsTests
 {

@@ -1,6 +1,6 @@
 using VrchatPrivacy.Core.Groups;
 
-namespace VrchatPrivacy.Core.Tests;
+namespace VrchatStatusGuard.Core.Tests;
 
 public class VrchatImageUrlTests
 {
