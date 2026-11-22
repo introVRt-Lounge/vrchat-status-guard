@@ -2,14 +2,21 @@
 
 ## Scope
 
-This Windows tray app authenticates to the unofficial VRChat API and reads the local user's VRChat output logs.
+This Windows tray app authenticates to the unofficial VRChat API and reads the local user's VRChat output logs. Session cookies are stored with Windows DPAPI on the member PC.
 
 ## Reporting
 
-**Do not open a public issue** for credential exposure, auth bugs, or other vulns.
+**Do not open a public GitHub Issue** for credential exposure, auth bugs, or other vulnerabilities.
 
-Prefer [GitHub Security Advisories](https://github.com/introVRt-Lounge/vrchat-status-guard/security/advisories/new).
-You can also email `h34vyg33@gmail.com` with subject `vrchat-status-guard security`.
+**Primary path:** GitHub **Private vulnerability reporting**.
+
+→ [Report a vulnerability](https://github.com/introVRt-Lounge/vrchat-status-guard/security/advisories/new)
+
+That form is the dedicated private channel (Settings → Code security → Private vulnerability reporting is enabled). Maintainers triage via Security advisories; coordinated disclosure only.
+
+**Fallback:** email `h34vyg33@gmail.com` with subject `vrchat-status-guard security` if you cannot use the form.
+
+Do not paste live secrets, session cookies, or recovery codes beyond what is needed to prove impact; redact where possible.
 
 ## Rules for contributors and agents
 
