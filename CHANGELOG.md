@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Release ship train: push to `main` auto-publishes Velopack again (tag-only gate after #37/#43 left users on stale v0.1.6 while main moved).
+
 ### Changed
 
 - Single installer path: Velopack `Setup.exe` only (`scripts/build-velopack.ps1`). Inno Setup removed from CI/release/docs.

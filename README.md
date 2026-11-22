@@ -41,7 +41,7 @@ Citations: [vrchatapi-csharp](https://github.com/vrchatapi/vrchatapi-csharp) · 
 4. Tray: left-click pause/resume; double-click protection hub; right-click for activity log / updates / About.
 5. Enter a protected world - API status (and optional group) apply when the budget allows.
 
-Self-contained (.NET embedded). Cookies in DPAPI. Releases are tag-gated (`v*`).
+Self-contained (.NET embedded). Cookies in DPAPI. Every merge to `main` cuts a GitHub Release (Velopack); optional manual `v*` tags / workflow_dispatch.
 
 Maintainer local install (matches Startup Run key):
 
