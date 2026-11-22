@@ -4,6 +4,8 @@
 
 Prevent someone accidentally remaining on blue when entering designated protected worlds. Best-effort automation; a short delay after entry is acceptable.
 
+**Platform reality:** writing status via the unofficial API does **not** reliably update the live VRChat client or friends' Join vs Request Invite. See README [Does this actually work?](../README.md#does-this-actually-work) and [feedback.vrchat.com](https://feedback.vrchat.com/open-beta/p/vrc-rest-api-websocket-issues-since-years-status-and-avatar-changes-are-extremel). Acceptance checks below mean "API + best-effort client sync," not a hard privacy guarantee.
+
 ## Platform and access
 
 - Windows tray application, running alongside PC VRChat.
@@ -40,13 +42,15 @@ The exact log events and API behaviour remain to be verified against a live sess
 
 ## Acceptance checks
 
-- Enter a protected world while blue: automatically become orange/red.
-- Start the tool while already in a protected world: protection applies.
-- Move between protected worlds: remain protected.
-- Leave a protected world: remain orange/red.
-- Restart VRChat: detection resumes.
-- Lose connectivity or authentication: display the failure and retry with bounded backoff.
+- Enter a protected world while blue: Status Guard writes orange/red to the API (verified GET).
+- Start the tool while already in a protected world: catch-up apply runs.
+- Move between protected worlds: coalesce to latest; status beats deferred repping.
+- Leave a protected world: leave status unchanged (no invented blue).
+- Restart VRChat: log watcher follows the newest file from EOF (no full-history replay).
+- VRChat process not running: halt pending status/group mutations.
+- Lose connectivity or authentication: display the failure; bounded backoff still TODO.
 - Pause protection: stop automatic changes.
+- In-game Quick Menu colour matching the API is **not** guaranteed (VRChat client bug).
 
 ## Scope limits
 
