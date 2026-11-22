@@ -3,7 +3,7 @@ using VrchatPrivacy.App.Ui;
 
 namespace VrchatPrivacy.App;
 
-/// <summary>First-run tour: protect one world, then show tray tips.</summary>
+/// <summary>First-run tour: login (if needed), protect one world, then tray tips.</summary>
 public sealed class FirstRunWizardForm : Form
 {
     private enum Phase
@@ -20,6 +20,12 @@ public sealed class FirstRunWizardForm : Form
     private Phase _phase = Phase.Intro;
     private AddWorldFlowControl.Result? _choice;
     private Icon? _trayPreviewIcon;
+
+    /// <summary>
+    /// Optional: ensure a VRChat session before Configure. Return true when authenticated.
+    /// Cancelled / failed login should return false (wizard stays on Intro).
+    /// </summary>
+    public Func<Task<bool>>? EnsureAuthenticatedAsync { get; init; }
 
     public FirstRunWizardForm(AppSettings settings, HubCatalog catalog, Icon? trayIcon = null)
     {
@@ -89,22 +95,43 @@ public sealed class FirstRunWizardForm : Form
         var body = new Label
         {
             Text =
-                "When you join that world, we'll flip your VRChat status automatically — " +
-                "Ask Me, Do Not Disturb, or Join Me — and optionally show a group you're representing.\n\n" +
+                "First we sign you into VRChat (unofficial API - no public OAuth yet), then you pick a " +
+                "protected world. When you join it, we'll ask the API for Ask Me, Do Not Disturb, or Join Me, " +
+                "and optionally set a group you're representing.\n\n" +
                 "Takes about a minute. You can change everything later from the tray.",
             Font = VrcTheme.BodyFont,
             ForeColor = VrcTheme.TextMuted,
             Location = new Point(40, 180),
-            Size = new Size(640, 120),
+            Size = new Size(640, 140),
         };
-        var start = new Button { Text = "Let's go", Size = new Size(140, 40), Location = new Point(40, 340) };
+        var start = new Button { Text = "Let's go", Size = new Size(140, 40), Location = new Point(40, 360) };
         VrcTheme.StylePrimaryButton(start);
-        start.Click += (_, _) =>
+        start.Click += async (_, _) =>
         {
-            _phase = Phase.Configure;
-            Render();
+            start.Enabled = false;
+            try
+            {
+                if (EnsureAuthenticatedAsync is not null)
+                {
+                    var ok = await EnsureAuthenticatedAsync().ConfigureAwait(true);
+                    if (!ok)
+                    {
+                        return;
+                    }
+                }
+
+                _phase = Phase.Configure;
+                Render();
+            }
+            finally
+            {
+                if (!IsDisposed && start is { IsDisposed: false })
+                {
+                    start.Enabled = true;
+                }
+            }
         };
-        var skip = new Button { Text = "Skip for now", Size = new Size(120, 36), Location = new Point(200, 342) };
+        var skip = new Button { Text = "Skip for now", Size = new Size(120, 36), Location = new Point(200, 362) };
         VrcTheme.StyleGhostButton(skip);
         skip.Click += (_, _) =>
         {
@@ -313,7 +340,7 @@ public sealed class FirstRunWizardForm : Form
         };
         tips.Controls.Add(MakeTipCard("Double-click", "Opens this protection hub — see protected worlds, add more, change status/group."));
         tips.Controls.Add(MakeTipCard("Single-click", "Pauses or resumes protection. Icon/tooltip update so you know it's working."));
-        tips.Controls.Add(MakeTipCard("Right-click", "Full menu: Login, Apply status now, Exit."));
+        tips.Controls.Add(MakeTipCard("Right-click", "Full menu: Logout / Login, Apply status now, Activity log, Exit."));
         panel.Controls.Add(tips);
 
         var done = new Button { Text = "Finish", Location = new Point(DpiUtil.Scale(this, 40), DpiUtil.Scale(this, 530)) };
