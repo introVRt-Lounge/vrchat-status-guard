@@ -137,7 +137,9 @@ public sealed class TrayAppContext : ApplicationContext
         try
         {
             await _orchestrator.StartAsync().ConfigureAwait(true);
-            if (!_session.IsAuthenticated)
+            var settings = _settingsStore.Load();
+            // Fresh install: first-run wizard owns login. Returning users still get Login… here.
+            if (!_session.IsAuthenticated && settings.OnboardingCompleted)
             {
                 await LoginAsync().ConfigureAwait(true);
             }
@@ -268,7 +270,10 @@ public sealed class TrayAppContext : ApplicationContext
             return;
         }
 
-        using var wizard = new FirstRunWizardForm(settings, _catalog, _tray.Icon);
+        using var wizard = new FirstRunWizardForm(settings, _catalog, _tray.Icon)
+        {
+            EnsureAuthenticatedAsync = EnsureAuthenticatedForWizardAsync,
+        };
         if (wizard.ShowDialog() == DialogResult.OK)
         {
             _settingsStore.Save(wizard.Result);
@@ -280,6 +285,24 @@ public sealed class TrayAppContext : ApplicationContext
             settings.OnboardingCompleted = true;
             _settingsStore.Save(settings);
         }
+    }
+
+    private async Task<bool> EnsureAuthenticatedForWizardAsync()
+    {
+        if (_session.IsAuthenticated)
+        {
+            return true;
+        }
+
+        await TryLoginInteractiveAsync(showWizardAfter: false).ConfigureAwait(true);
+        if (_session.IsAuthenticated)
+        {
+            _catalog.BeginWarmup();
+            UpdateTray();
+            return true;
+        }
+
+        return false;
     }
 
     private void TogglePause()
@@ -349,7 +372,10 @@ public sealed class TrayAppContext : ApplicationContext
         _authItem.Text = _session.IsAuthenticated ? "Logout…" : "Login…";
     }
 
-    private async Task LoginAsync()
+    private async Task LoginAsync() =>
+        await TryLoginInteractiveAsync(showWizardAfter: true).ConfigureAwait(true);
+
+    private async Task TryLoginInteractiveAsync(bool showWizardAfter)
     {
         var settings = _settingsStore.Load();
         using var form = new LoginForm(settings.UsernameHint);
@@ -413,7 +439,11 @@ public sealed class TrayAppContext : ApplicationContext
             await _orchestrator.StartAsync().ConfigureAwait(true);
             _catalog.BeginWarmup();
             UpdateTray();
-            MaybeShowFirstRunWizard();
+            if (showWizardAfter)
+            {
+                MaybeShowFirstRunWizard();
+            }
+
             UpdateTray();
         }
         catch (Exception ex)

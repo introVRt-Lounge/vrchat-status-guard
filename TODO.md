@@ -70,6 +70,8 @@
 - [x] [#63](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/63) Tray status uses group/world names not IDs
 - [x] [#64](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/64) Doc sweep: CONTRIBUTING/SUPPORT/refs vs current scripts
 - [x] [#66](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/66) Public Tier H: PVR, secret scan, CodeQL, Code Quality, branch protection
+- [x] [#68](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/68) Social preview asset `.github/social-preview.png` (operator uploads in Settings)
+- [x] [#69](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/69) First-run wizard includes login (no public VRChat OAuth)
 - [ ] End-user path confirm: enter protected world → status becomes orange/red in-game (blocked on VRChat client sync)
 - [ ] Bounded backoff UI polish on repeated auth/network failure
 - [ ] Optional: store TOTP secret for seamless re-login (today: interactive OTP)

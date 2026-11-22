@@ -70,4 +70,4 @@ Release pack: `.\scripts\build-velopack.ps1 -Version <semver>` (CI smoke uses `0
 |------|----------|
 | GitHub Pages / Tier E docs site | Skip - no library docs site; marketing is introvrtlounge.com |
 | FUNDING.yml / Sponsor button | Optional later - not required for Status Guard |
-| Social preview Open Graph | Optional polish - add when cutting a marketed release |
+| Social preview Open Graph | **Asset in repo:** `.github/social-preview.png` (1280×640). **Upload:** Settings → General → Social preview (no REST API) - operator one-click after merge |

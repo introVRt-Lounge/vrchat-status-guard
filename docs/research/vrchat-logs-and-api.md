@@ -66,10 +66,13 @@ Product implication: treat API success as account-record success only. Invite / 
 Package: [`VRChat.API` 2.24.0](https://www.nuget.org/packages/VRChat.API/2.24.0) (net8.0).
 
 - Preferred: TOTP secret + `LoginAsync()` for seamless re-auth.
-- Interactive tray: manual `GetCurrentUser` → `Verify2FA` / `Verify2FAEmailCode` flow from the SDK README.
-- Persist `auth` + `twoFactorAuth` cookies via DPAPI (`ICredentialStore`).
+- Interactive tray / first-run wizard: username + password + TOTP/email OTP; persist `auth` + `twoFactorAuth` cookies via DPAPI (`ICredentialStore`).
 
 Identify the client (`WithApplication` / User-Agent). VRChat rejects anonymous clients.
+
+### No public OAuth (yet)
+
+[VRChat Creator Guidelines](https://hello.vrchat.com/creator-guidelines) still say they do not offer OAuth for third parties and ask apps not to collect credentials - while acknowledging that creates serious challenges. Community threads ([ask.vrchat.com OAuth request](https://ask.vrchat.com/t/a-proper-sso-oauth2-and-or-oidc-endpoint-public-vrchat-api/22909)): OAuth exists for **partners / bizdev** only; Tupper (2025) said public OAuth/SSO is interesting but not on the roadmap. Status Guard keeps cookie login until a blessed public path exists.
 
 ## Abuse / rate guidance (community)
 
