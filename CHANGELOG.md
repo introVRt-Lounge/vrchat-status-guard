@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Release ship train: push to `main` auto-publishes Velopack again (tag-only gate after #37/#43 left users on stale v0.1.6 while main moved).
 - Auto-release is **major/minor only** (conventional `feat` / breaking); **patch** via `workflow_dispatch` on demand (#77).
+- Tray icons: branded Status Guard glyphs (SystemIcons.Shield/Application blanked after install; paused Warning still worked) (#80).
+- What's New: GitHub Release body filled after `vpk upload` (was empty) (#81).
+
+### Changed
+
+- Test project renamed to `VrchatStatusGuard.Core.Tests` (#82).
 
 ### Changed
 

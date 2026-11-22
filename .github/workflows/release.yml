@@ -160,6 +160,7 @@ jobs:
           "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "tag=v$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           "bump=$bump" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "prev_tag=$latest" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           Write-Host "Release version $v @ $env:GITHUB_SHA (bump=$bump)"
           exit 0
 
@@ -178,6 +179,39 @@ jobs:
             --token "${{ secrets.GITHUB_TOKEN }}" `
             --outputDir artifacts/velopack
 
+      - name: Write release notes
+        if: steps.ver.outputs.skip != 'true'
+        id: notes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          $tag = "${{ steps.ver.outputs.tag }}"
+          $prev = "${{ steps.ver.outputs.prev_tag }}"
+          $path = "artifacts/release-notes.md"
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          $lines = New-Object System.Collections.Generic.List[string]
+          $lines.Add("## Status Guard $tag")
+          $lines.Add("")
+          if ($prev -and $prev -ne "v0.0.0") {
+            $lines.Add("Changes since ``$prev``:")
+            $lines.Add("")
+            $subjects = @(git log "$prev..HEAD" --pretty=format:"- %s")
+            if ($subjects.Count -eq 0) {
+              $lines.Add("- Maintenance release.")
+            }
+            else {
+              foreach ($s in $subjects) { $lines.Add($s) }
+            }
+          }
+          else {
+            $lines.Add("- Initial packaged release.")
+          }
+          $lines.Add("")
+          $lines.Add("Install: download **VRChatStatusGuard-win-Setup.exe** from the assets below.")
+          ($lines -join "`n") + "`n" | Set-Content -Path $path -Encoding utf8
+          Get-Content $path | Write-Host
+          "path=$path" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
       - name: Publish + Velopack pack
         if: steps.ver.outputs.skip != 'true'
         shell: pwsh
@@ -186,6 +220,7 @@ jobs:
             -Version "${{ steps.ver.outputs.version }}" `
             -PackId "${{ env.PACK_ID }}" `
             -VpkVersion "${{ env.VELOPACK_VERSION }}" `
+            -ReleaseNotesPath "${{ steps.notes.outputs.path }}" `
             -SkipToolInstall
 
       - name: Upload Velopack artifact
@@ -208,3 +243,14 @@ jobs:
             --releaseName "VRChat Status Guard ${{ steps.ver.outputs.tag }}" `
             --targetCommitish ${{ github.sha }} `
             --publish
+
+      - name: Set GitHub release body
+        if: steps.ver.outputs.skip != 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # vpk upload leaves body empty; What's New reads GitHub API body (#81).
+          gh release edit "${{ steps.ver.outputs.tag }}" `
+            --repo "${{ github.repository }}" `
+            --notes-file "${{ steps.notes.outputs.path }}"

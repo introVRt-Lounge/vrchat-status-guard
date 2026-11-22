@@ -105,11 +105,26 @@ public sealed class AppUpdateService
         var body = root.TryGetProperty("body", out var b) ? b.GetString() : null;
         var url = root.TryGetProperty("html_url", out var u) ? u.GetString() : RepoUrl + "/releases";
 
+        var title = string.IsNullOrWhiteSpace(name) ? tag : name!;
+        string notes;
+        if (!string.IsNullOrWhiteSpace(body))
+        {
+            notes = body!;
+        }
+        else
+        {
+            // Older Velopack uploads left body empty; surface the release title so What's New
+            // is never a blank "no notes" lie when the release itself exists (#81).
+            notes =
+                $"{title}\n\n(No detailed notes were attached to this GitHub Release body. " +
+                "Open the release page for assets and commit history.)";
+        }
+
         return new ReleaseNotes
         {
             Tag = tag,
-            Title = string.IsNullOrWhiteSpace(name) ? tag : name!,
-            Body = string.IsNullOrWhiteSpace(body) ? "(No release notes were published for this version.)" : body!,
+            Title = title,
+            Body = notes,
             HtmlUrl = url,
             MatchedExactTag = string.Equals(tag, requestedTag, StringComparison.OrdinalIgnoreCase),
         };

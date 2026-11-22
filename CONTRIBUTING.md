@@ -17,7 +17,7 @@ Exceptions: operator says "skip issue", one-line doc typo, or declared hotfix mo
 
 ```powershell
 dotnet restore src/VrchatPrivacy.sln
-dotnet test tests/VrchatPrivacy.Core.Tests/VrchatPrivacy.Core.Tests.csproj
+dotnet test tests/VrchatStatusGuard.Core.Tests/VrchatStatusGuard.Core.Tests.csproj
 dotnet run --project src/VrchatPrivacy.App/VrchatPrivacy.App.csproj
 ```
 
@@ -63,6 +63,6 @@ subject when the merge should cut a GitHub Release.
 ## PR checklist
 
 - [ ] Linked issue (`Fixes #N`) unless exception applies
-- [ ] `dotnet test tests/VrchatPrivacy.Core.Tests/VrchatPrivacy.Core.Tests.csproj` green
+- [ ] `dotnet test tests/VrchatStatusGuard.Core.Tests/VrchatStatusGuard.Core.Tests.csproj` green
 - [ ] No secrets in the diff
 - [ ] Docs/TODO updated if behaviour or milestone status changed

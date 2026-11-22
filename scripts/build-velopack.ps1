@@ -9,6 +9,8 @@ param(
     [string]$PackId = "VRChatStatusGuard",
     [string]$VpkVersion = "1.2.161",
     [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
+    [string]$ReleaseNotesPath = "",
+    [string]$IconPath = "",
     [switch]$SkipToolInstall
 )
 
@@ -48,15 +50,32 @@ if (-not $SkipToolInstall) {
     }
 }
 
+if (-not $IconPath) {
+    $candidate = Join-Path $publishDir "Assets\status-guard-logo.png"
+    if (Test-Path $candidate) { $IconPath = $candidate }
+}
+
 Write-Host "Velopack pack $PackId $Version"
-vpk pack `
-    --packId $PackId `
-    --packVersion $Version `
-    --packDir $publishDir `
-    --mainExe VrchatPrivacy.App.exe `
-    --packTitle "Status Guard" `
-    --runtime win-x64 `
-    --outputDir $velopackOut
+$packArgs = @(
+    "pack",
+    "--packId", $PackId,
+    "--packVersion", $Version,
+    "--packDir", $publishDir,
+    "--mainExe", "VrchatPrivacy.App.exe",
+    "--packTitle", "Status Guard",
+    "--runtime", "win-x64",
+    "--outputDir", $velopackOut
+)
+if ($ReleaseNotesPath -and (Test-Path $ReleaseNotesPath)) {
+    $packArgs += @("--releaseNotes", $ReleaseNotesPath)
+}
+if ($IconPath -and (Test-Path $IconPath)) {
+    # vpk prefers .ico; PNG is accepted on recent vpk for pack icon in some builds - skip if not ico
+    if ($IconPath.ToLowerInvariant().EndsWith(".ico")) {
+        $packArgs += @("--icon", $IconPath)
+    }
+}
+vpk @packArgs
 
 if ($LASTEXITCODE -ne 0) { throw "vpk pack failed ($LASTEXITCODE)" }
 

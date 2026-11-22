@@ -1,7 +1,7 @@
 using VrchatPrivacy.Core.Activity;
 using VrchatPrivacy.Core.Protection;
 
-namespace VrchatPrivacy.Core.Tests;
+namespace VrchatStatusGuard.Core.Tests;
 
 public class ActivityJournalTests : IDisposable
 {

@@ -54,7 +54,7 @@ Maintainer local install (matches Startup Run key):
 
 ```powershell
 dotnet restore src/VrchatPrivacy.sln
-dotnet test tests/VrchatPrivacy.Core.Tests/VrchatPrivacy.Core.Tests.csproj
+dotnet test tests/VrchatStatusGuard.Core.Tests/VrchatStatusGuard.Core.Tests.csproj
 dotnet run --project src/VrchatPrivacy.App/VrchatPrivacy.App.csproj
 ```
 
@@ -62,7 +62,7 @@ dotnet run --project src/VrchatPrivacy.App/VrchatPrivacy.App.csproj
 |---------|------|
 | `VrchatPrivacy.Core` | Log parse, rules, auth, protection decisions |
 | `VrchatPrivacy.App` | WinForms tray (Windows) |
-| `VrchatPrivacy.Core.Tests` | Unit tests |
+| `VrchatStatusGuard.Core.Tests` | Unit tests |
 
 VRChat logs: `%UserProfile%\AppData\LocalLow\VRChat\VRChat\output_log_*.txt`.
 
