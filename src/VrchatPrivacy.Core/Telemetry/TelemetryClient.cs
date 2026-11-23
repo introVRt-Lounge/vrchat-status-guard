@@ -180,7 +180,7 @@ public sealed class TelemetryClient : IDisposable
             // Flush while still enabled; FlushAsync no-ops after _disposed.
             FlushAsync().GetAwaiter().GetResult();
         }
-        catch
+        catch (Exception)
         {
             // ignore on dispose
         }

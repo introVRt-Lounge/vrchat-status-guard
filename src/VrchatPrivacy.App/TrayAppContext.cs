@@ -789,7 +789,7 @@ public sealed class TrayAppContext : ApplicationContext
             await TelemetryGate.FlushAsync().ConfigureAwait(true);
             TelemetryGate.Configure(null);
         }
-        catch
+        catch (Exception)
         {
             // telemetry best-effort on exit
         }
