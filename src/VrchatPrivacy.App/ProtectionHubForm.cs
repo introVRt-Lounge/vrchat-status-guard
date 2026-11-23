@@ -32,6 +32,7 @@ public sealed class ProtectionHubForm : Form
     private readonly Panel _addChrome;
     private readonly LinkLabel _aboutLink;
     private readonly LinkLabel _logLink;
+    private readonly LinkLabel _privacyLink;
     private AddWorldFlowControl? _flow;
     private CancellationTokenSource? _cts;
 
@@ -84,6 +85,27 @@ public sealed class ProtectionHubForm : Form
             TabStop = true,
         };
         _logLink.LinkClicked += (_, _) => ActivityLogForm.ShowLog(this, _activity, _catalog);
+
+        _privacyLink = new LinkLabel
+        {
+            Text = "Privacy",
+            AutoSize = true,
+            Font = VrcTheme.SmallFont,
+            LinkColor = VrcTheme.Accent,
+            ActiveLinkColor = VrcTheme.TextPrimary,
+            VisitedLinkColor = VrcTheme.Accent,
+            BackColor = Color.Transparent,
+            TabStop = true,
+        };
+        _privacyLink.LinkClicked += (_, _) =>
+        {
+            using var form = new PrivacyTelemetryForm(_settings);
+            if (form.ShowDialog(this) == DialogResult.OK)
+            {
+                // Persist opt-out even if the hub is later cancelled.
+                new AppSettingsStore().Save(_settings);
+            }
+        };
 
         _headerStack = new FlowLayoutPanel
         {
@@ -150,8 +172,10 @@ public sealed class ProtectionHubForm : Form
         // Top-right links stay visible even in sole-focus (header hidden).
         Controls.Add(_aboutLink);
         Controls.Add(_logLink);
+        Controls.Add(_privacyLink);
         _aboutLink.BringToFront();
         _logLink.BringToFront();
+        _privacyLink.BringToFront();
         Resize += (_, _) => LayoutAboutLink();
         LayoutAboutLink();
 
@@ -191,8 +215,12 @@ public sealed class ProtectionHubForm : Form
         _logLink.Location = new Point(
             Math.Max(pad, _aboutLink.Left - _logLink.Width - gap),
             pad);
+        _privacyLink.Location = new Point(
+            Math.Max(pad, _logLink.Left - _privacyLink.Width - gap),
+            pad);
         _aboutLink.BringToFront();
         _logLink.BringToFront();
+        _privacyLink.BringToFront();
     }
 
     private void ToggleFlow(bool allowPaste)

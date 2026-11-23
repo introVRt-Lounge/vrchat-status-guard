@@ -3,6 +3,8 @@ using VrchatPrivacy.Core.Auth;
 using VrchatPrivacy.Core.Logs;
 using VrchatPrivacy.Core.Protection;
 using VrchatPrivacy.Core.Settings;
+using VrchatPrivacy.Core.Telemetry;
+using VrchatPrivacy.App.Telemetry;
 using VrchatPrivacy.App.Ui;
 using VrchatPrivacy.App.Updates;
 
@@ -27,6 +29,7 @@ public sealed class TrayAppContext : ApplicationContext
     private int _pendingClickGeneration;
     private bool _hubOpen;
     private ProtectionHubForm? _hubForm;
+    private System.Windows.Forms.Timer? _telemetryHeartbeat;
 
     public TrayAppContext()
     {
@@ -42,7 +45,12 @@ public sealed class TrayAppContext : ApplicationContext
             _settingsStore,
             worlds: _catalog.Worlds);
         _updates = new AppUpdateService();
-        _orchestrator.StateChanged += (_, _) => BeginInvoke(UpdateTray);
+        BootstrapTelemetry();
+        _orchestrator.StateChanged += (_, _) =>
+        {
+            BeginInvoke(UpdateTray);
+            TelemetryUi.Mark("protection_state", ("state", _orchestrator.State.ToString()));
+        };
         _orchestrator.ProtectionApplied += (_, e) => BeginInvoke(() => NotifyProtectionApplied(e));
 
         _statusItem = new ToolStripMenuItem("Status: starting…") { Enabled = false };
@@ -61,9 +69,15 @@ public sealed class TrayAppContext : ApplicationContext
         _menu.Items.Add("Check for updates…", null, async (_, _) => await CheckForUpdatesInteractiveAsync());
         _menu.Items.Add("What's New…", null, async (_, _) => await ShowWhatsNewAsync());
         _menu.Items.Add("Activity log…", null, (_, _) =>
-            ActivityLogForm.ShowLog(null, _orchestrator.Activity, _catalog));
+        {
+            TelemetryUi.Surface("activity_log", "tray_menu");
+            ActivityLogForm.ShowLog(null, _orchestrator.Activity, _catalog);
+        });
         _menu.Items.Add("About…", null, (_, _) =>
-            AboutForm.ShowAbout(null, _orchestrator.Activity, _catalog));
+        {
+            TelemetryUi.Surface("about", "tray_menu");
+            AboutForm.ShowAbout(null, _orchestrator.Activity, _catalog);
+        });
         _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add("Exit", null, (_, _) => Exit());
 
@@ -120,12 +134,14 @@ public sealed class TrayAppContext : ApplicationContext
             return;
         }
 
+        TelemetryUi.Mark("tray_click", ("kind", "single"), ("action", "toggle_pause"));
         TogglePause();
     }
 
     private void OnTrayMouseDoubleClick(object? sender, EventArgs e)
     {
         VrchatPrivacy.Core.Logging.AppLog.Info($"Tray DoubleClick -> hub (open={_hubOpen})");
+        TelemetryUi.Mark("tray_click", ("kind", "double"), ("action", "open_hub"));
         Interlocked.Increment(ref _pendingClickGeneration); // cancel any pending pause
         _suppressSingleClickUntilUtc = DateTime.UtcNow.AddMilliseconds(
             Math.Max(SystemInformation.DoubleClickTime * 2, 800));
@@ -246,6 +262,7 @@ public sealed class TrayAppContext : ApplicationContext
 
     private async Task ShowWhatsNewAsync()
     {
+        TelemetryUi.Surface("whats_new", "tray_menu");
         try
         {
             var notes = await _updates.GetReleaseNotesAsync().ConfigureAwait(true);
@@ -305,11 +322,55 @@ public sealed class TrayAppContext : ApplicationContext
         return false;
     }
 
+    private void BootstrapTelemetry()
+    {
+        var settings = _settingsStore.Load();
+        if (string.IsNullOrWhiteSpace(settings.InstallId))
+        {
+            settings.InstallId = Guid.NewGuid().ToString("N");
+            _settingsStore.Save(settings);
+        }
+
+        var client = new TelemetryClient(
+            installId: settings.InstallId!,
+            appVersion: AppUpdateService.CurrentVersion,
+            enabled: settings.TelemetryEnabled);
+        TelemetryGate.Configure(client);
+        TelemetryUi.Mark(
+            "app_start",
+            ("velopack", _updates.IsVelopackInstalled ? "1" : "0"),
+            ("onboarding_done", settings.OnboardingCompleted ? "1" : "0"),
+            ("telemetry", settings.TelemetryEnabled ? "1" : "0"),
+            ("protected_worlds_bucket", BucketCount(settings.ProtectedWorldIds.Count)));
+
+        _telemetryHeartbeat = new System.Windows.Forms.Timer { Interval = 60 * 60 * 1000 };
+        _telemetryHeartbeat.Tick += (_, _) =>
+        {
+            var s = _settingsStore.Load();
+            TelemetryUi.Mark(
+                "session_heartbeat",
+                ("state", _orchestrator.State.ToString()),
+                ("paused", _orchestrator.IsPaused ? "1" : "0"),
+                ("protected_worlds_bucket", BucketCount(s.ProtectedWorldIds.Count)));
+            _ = TelemetryGate.FlushAsync();
+        };
+        _telemetryHeartbeat.Start();
+    }
+
+    private static string BucketCount(int n) => n switch
+    {
+        <= 0 => "0",
+        1 => "1",
+        <= 5 => "2-5",
+        _ => "6+",
+    };
+
     private void TogglePause()
     {
         var pause = !_orchestrator.IsPaused;
         _orchestrator.SetPaused(pause);
         UpdateTray();
+        TelemetryUi.Mark("protection_halt", ("reason", pause ? "paused" : "resumed"));
         VrchatPrivacy.Core.Logging.AppLog.Info(pause ? "Tray: protection paused" : "Tray: protection resumed");
         try
         {
@@ -381,6 +442,7 @@ public sealed class TrayAppContext : ApplicationContext
         using var form = new LoginForm(settings.UsernameHint);
         if (form.ShowDialog() != DialogResult.OK)
         {
+            TelemetryUi.Mark("auth_outcome", ("outcome", "cancel"));
             return;
         }
 
@@ -400,6 +462,7 @@ public sealed class TrayAppContext : ApplicationContext
                 if (string.IsNullOrWhiteSpace(otp))
                 {
                     VrchatPrivacy.Core.Logging.AppLog.Warn("Login UI: 2FA cancelled or empty");
+                    TelemetryUi.Mark("auth_outcome", ("outcome", "2fa_cancel"));
                     UpdateTray();
                     return;
                 }
@@ -412,6 +475,12 @@ public sealed class TrayAppContext : ApplicationContext
                 {
                     await _session.CompleteTotpAsync(otp).ConfigureAwait(true);
                 }
+
+                TelemetryUi.Mark("auth_outcome", ("outcome", "ok_2fa"));
+            }
+            else
+            {
+                TelemetryUi.Mark("auth_outcome", ("outcome", "ok"));
             }
 
             settings.UsernameHint = form.Username;
@@ -423,6 +492,10 @@ public sealed class TrayAppContext : ApplicationContext
         catch (Exception ex)
         {
             VrchatPrivacy.Core.Logging.AppLog.Error("Login UI failed", ex);
+            TelemetryUi.Mark(
+                "auth_outcome",
+                ("outcome", "fail"),
+                ("fail_class", ex.GetType().Name));
             MessageBox.Show(
                 $"Login failed: {ex.GetType().Name}: {ex.Message}\n\nDetails: tray → Activity log → Debug.",
                 "Status Guard",
@@ -543,6 +616,7 @@ public sealed class TrayAppContext : ApplicationContext
         // cannot nest another modal hub.
         _hubOpen = true;
         Interlocked.Increment(ref _pendingClickGeneration);
+        TelemetryUi.Surface("hub", "open");
         try
         {
             var settings = _settingsStore.Load();
@@ -550,11 +624,14 @@ public sealed class TrayAppContext : ApplicationContext
             _hubForm = form;
             if (form.ShowDialog() != DialogResult.OK)
             {
+                TelemetryUi.Surface("hub", "cancel");
                 return;
             }
 
             _settingsStore.Save(form.Result);
+            TelemetryGate.SetEnabled(form.Result.TelemetryEnabled);
             _orchestrator.ReloadSettings();
+            TelemetryUi.Surface("hub", "save");
             UpdateTray();
         }
         finally
@@ -609,6 +686,12 @@ public sealed class TrayAppContext : ApplicationContext
     private async void NotifyProtectionApplied(ProtectionAppliedEventArgs e)
     {
         UpdateTray();
+        TelemetryUi.Mark(
+            "protection_apply",
+            ("outcome", e.ApiStatusVerified ? "ok" : "ok_unverified"),
+            ("status", e.Status.ToString()),
+            ("client_sync_uncertain", e.ClientSyncUncertain ? "1" : "0"),
+            ("repping", string.IsNullOrWhiteSpace(e.RepresentGroupId) ? "0" : "1"));
         var worldName = FirstNonEmpty(
             e.WorldName,
             _catalog.Worlds.TryGetCached(e.WorldId)?.Name);
@@ -698,6 +781,19 @@ public sealed class TrayAppContext : ApplicationContext
 
     private async void Exit()
     {
+        try
+        {
+            _telemetryHeartbeat?.Stop();
+            _telemetryHeartbeat?.Dispose();
+            TelemetryUi.Mark("app_exit");
+            await TelemetryGate.FlushAsync().ConfigureAwait(true);
+            TelemetryGate.Configure(null);
+        }
+        catch
+        {
+            // telemetry best-effort on exit
+        }
+
         try
         {
             await _orchestrator.StopAsync().ConfigureAwait(true);

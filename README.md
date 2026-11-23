@@ -73,8 +73,12 @@ VRChat logs: `%UserProfile%\AppData\LocalLow\VRChat\VRChat\output_log_*.txt`.
 - DPAPI for cookies; never log passwords, OTP, or tokens.
 - ≤1 mutating request / 60s (see above).
 
+## Telemetry (early adopters)
+
+First builds treat you as a guinea pig: anonymous timings / screens hit, default **on** (opt out in wizard or hub → Privacy). No VRChat identity. Details: [TELEMETRY.md](TELEMETRY.md). Later release tones this way down (#86).
+
 ## Docs / license
 
-[BUILD_BRIEF](docs/BUILD_BRIEF.md) · [research](docs/research/vrchat-logs-and-api.md) · [CONTRIBUTING](CONTRIBUTING.md) · [TODO](TODO.md) · [MIT](LICENSE)
+[BUILD_BRIEF](docs/BUILD_BRIEF.md) · [TELEMETRY](TELEMETRY.md) · [research](docs/research/vrchat-logs-and-api.md) · [CONTRIBUTING](CONTRIBUTING.md) · [TODO](TODO.md) · [MIT](LICENSE)
 
 Unofficial - not affiliated with VRChat Inc.

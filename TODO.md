@@ -78,6 +78,8 @@
 - [x] [#80](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/80) Branded tray icons (SystemIcons.Shield blank when installed)
 - [x] [#81](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/81) Populate GitHub release body for What's New
 - [x] [#82](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/82) Rename Core.Tests away from Privacy branding
+- [ ] [#85](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/85) Extreme early-adopter telemetry (opt-out, guinea-pig FUE) - in PR
+- [ ] [#86](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/86) Tone down telemetry after early-adopter phase (later)
 - [ ] End-user path confirm: enter protected world → status becomes orange/red in-game (blocked on VRChat client sync)
 - [ ] Bounded backoff UI polish on repeated auth/network failure
 - [ ] Optional: store TOTP secret for seamless re-login (today: interactive OTP)
