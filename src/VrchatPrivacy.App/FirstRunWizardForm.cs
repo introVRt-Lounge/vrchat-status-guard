@@ -1,4 +1,6 @@
 using VrchatPrivacy.Core.Settings;
+using VrchatPrivacy.Core.Telemetry;
+using VrchatPrivacy.App.Telemetry;
 using VrchatPrivacy.App.Ui;
 
 namespace VrchatPrivacy.App;
@@ -102,25 +104,46 @@ public sealed class FirstRunWizardForm : Form
             Font = VrcTheme.BodyFont,
             ForeColor = VrcTheme.TextMuted,
             Location = new Point(40, 180),
-            Size = new Size(640, 140),
+            Size = new Size(640, 110),
         };
-        var start = new Button { Text = "Let's go", Size = new Size(140, 40), Location = new Point(40, 360) };
+
+        var telemetry = new CheckBox
+        {
+            Checked = _settings.TelemetryEnabled,
+            AutoSize = false,
+            Location = new Point(40, 300),
+            Size = new Size(660, 72),
+            Font = VrcTheme.SmallFont,
+            ForeColor = VrcTheme.TextMuted,
+            Text =
+                "Early builds: you're a guinea pig. Send anonymous usage diagnostics so we can see if " +
+                "protection works and where setup stalls (timings, screens hit - not your VRChat identity). " +
+                "Uncheck to opt out. Change anytime in Protection hub → Privacy.",
+        };
+
+        var start = new Button { Text = "Let's go", Size = new Size(140, 40), Location = new Point(40, 390) };
         VrcTheme.StylePrimaryButton(start);
         start.Click += async (_, _) =>
         {
             start.Enabled = false;
             try
             {
+                ApplyTelemetryChoice(telemetry.Checked);
+                TelemetryUi.WizardStep("intro", "continue");
                 if (EnsureAuthenticatedAsync is not null)
                 {
                     var ok = await EnsureAuthenticatedAsync().ConfigureAwait(true);
                     if (!ok)
                     {
+                        TelemetryUi.WizardStep("login", "cancel_or_fail");
                         return;
                     }
+
+                    TelemetryUi.WizardStep("login", "ok");
                 }
 
                 _phase = Phase.Configure;
+                TelemetryUi.WizardStep("configure", "enter");
                 Render();
             }
             finally
@@ -131,10 +154,12 @@ public sealed class FirstRunWizardForm : Form
                 }
             }
         };
-        var skip = new Button { Text = "Skip for now", Size = new Size(120, 36), Location = new Point(200, 362) };
+        var skip = new Button { Text = "Skip for now", Size = new Size(120, 36), Location = new Point(200, 392) };
         VrcTheme.StyleGhostButton(skip);
         skip.Click += (_, _) =>
         {
+            ApplyTelemetryChoice(telemetry.Checked);
+            TelemetryUi.WizardStep("intro", "skip");
             _settings.OnboardingCompleted = true;
             DialogResult = DialogResult.OK;
             Close();
@@ -143,9 +168,22 @@ public sealed class FirstRunWizardForm : Form
         panel.Controls.Add(brand);
         panel.Controls.Add(headline);
         panel.Controls.Add(body);
+        panel.Controls.Add(telemetry);
         panel.Controls.Add(start);
         panel.Controls.Add(skip);
         _host.Controls.Add(panel);
+        TelemetryUi.WizardStep("intro", "shown");
+    }
+
+    private void ApplyTelemetryChoice(bool enabled)
+    {
+        _settings.TelemetryEnabled = enabled;
+        _settings.TelemetryPromptShown = true;
+        TelemetryGate.SetEnabled(enabled);
+        TelemetryGate.Track(
+            "telemetry_consent",
+            ("enabled", enabled ? "1" : "0"),
+            ("source", "wizard"));
     }
 
     private void RenderConfigure()
@@ -165,6 +203,9 @@ public sealed class FirstRunWizardForm : Form
             // First protected choice also becomes the default status.
             _settings.ProtectionStatus = result.Status;
             _settings.EnsureDefaultWorldPresent();
+            TelemetryUi.WizardStep(
+                "configure",
+                result.Group is null ? "world_only" : "world_and_group");
             _phase = Phase.Summary;
             Render();
         };
@@ -283,6 +324,7 @@ public sealed class FirstRunWizardForm : Form
         VrcTheme.StylePrimaryButton(next);
         next.Click += (_, _) =>
         {
+            TelemetryUi.WizardStep("summary", "continue");
             _phase = Phase.TrayTips;
             Render();
         };
@@ -290,6 +332,7 @@ public sealed class FirstRunWizardForm : Form
         panel.Controls.Add(card);
         panel.Controls.Add(next);
         _host.Controls.Add(panel);
+        TelemetryUi.WizardStep("summary", "shown");
     }
 
     private void RenderTrayTips()
@@ -347,10 +390,12 @@ public sealed class FirstRunWizardForm : Form
         VrcTheme.StylePrimaryButton(done);
         done.Click += (_, _) =>
         {
+            TelemetryUi.WizardStep("tray_tips", "finish");
             _settings.OnboardingCompleted = true;
             DialogResult = DialogResult.OK;
             Close();
         };
+        TelemetryUi.WizardStep("tray_tips", "shown");
         // Place Finish below tips once laid out.
         tips.Layout += (_, _) =>
         {

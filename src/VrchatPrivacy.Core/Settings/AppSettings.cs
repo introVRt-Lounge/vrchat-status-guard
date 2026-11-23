@@ -40,6 +40,17 @@ public sealed class AppSettings
     /// <summary>False until the first-run wizard finishes (or is skipped by migration).</summary>
     public bool OnboardingCompleted { get; set; }
 
+    /// <summary>
+    /// Early-adopter default ON (opt-out). Extreme research telemetry until toned down (#85 / #86).
+    /// </summary>
+    public bool TelemetryEnabled { get; set; } = true;
+
+    /// <summary>True once the wizard (or hub Privacy) recorded an explicit telemetry choice.</summary>
+    public bool TelemetryPromptShown { get; set; }
+
+    /// <summary>Stable anonymous install id for telemetry correlation (not a VRChat id).</summary>
+    public string? InstallId { get; set; }
+
     public ProtectionStatus StatusForWorldId(string worldId)
     {
         if (!string.IsNullOrWhiteSpace(worldId))
@@ -207,6 +218,17 @@ public sealed class AppSettingsStore
                 settings.RepresentGroupByWorld.Count > 0;
         }
 
+        if (string.IsNullOrWhiteSpace(settings.InstallId))
+        {
+            settings.InstallId = Guid.NewGuid().ToString("N");
+        }
+
+        // Early-adopter phase (#85): missing key => telemetry on (opt-out). Later tone-down may flip this (#86).
+        if (!json.Contains("telemetryEnabled", StringComparison.OrdinalIgnoreCase))
+        {
+            settings.TelemetryEnabled = true;
+        }
+
         settings.EnsureDefaultWorldPresent();
         return settings;
     }
@@ -214,6 +236,11 @@ public sealed class AppSettingsStore
     public void Save(AppSettings settings)
     {
         settings.EnsureDefaultWorldPresent();
+        if (string.IsNullOrWhiteSpace(settings.InstallId))
+        {
+            settings.InstallId = Guid.NewGuid().ToString("N");
+        }
+
         var json = JsonSerializer.Serialize(settings, JsonOptions);
         File.WriteAllText(_path, json);
     }
