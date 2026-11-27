@@ -683,34 +683,12 @@ public sealed class AddWorldFlowControl : UserControl
     }
 
     /// <summary>
-    /// Catalog groups (capped). Selected group is always included and listed first.
+    /// Full catalog for pick (scroll the panel). Selected group is listed first.
     /// </summary>
     private List<GroupInfo> BuildGroupListForPick()
     {
-        var catalog = _catalog.Groups;
         var selected = !_skipGroup ? _group : null;
-        var list = new List<GroupInfo>(41);
-        if (selected is not null)
-        {
-            list.Add(selected);
-        }
-
-        foreach (var g in catalog)
-        {
-            if (selected is not null &&
-                string.Equals(g.Id, selected.Id, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            list.Add(g);
-            if (list.Count >= 40)
-            {
-                break;
-            }
-        }
-
-        return list;
+        return GroupPickList.Build(_catalog.Groups, selected);
     }
 
     private void RenderConfirm()
