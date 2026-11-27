@@ -16,15 +16,15 @@ Exceptions: operator says "skip issue", one-line doc typo, or declared hotfix mo
 3. Clone this repo; restore and test:
 
 ```powershell
-dotnet restore src/VrchatPrivacy.sln
-dotnet test tests/VrchatStatusGuard.Core.Tests/VrchatStatusGuard.Core.Tests.csproj
-dotnet run --project src/VrchatPrivacy.App/VrchatPrivacy.App.csproj
+dotnet restore src/StatusGuard.sln
+dotnet test tests/StatusGuard.Core.Tests/StatusGuard.Core.Tests.csproj
+dotnet run --project src/StatusGuard.App/StatusGuard.App.csproj
 ```
 
 ### Local install (matches Startup)
 
-Windows **Start with Windows** (`HKCU\...\Run\VrchatStatusGuard`) points at
-`%LOCALAPPDATA%\Programs\introVRt Lounge\VRChat Status Guard` - not `bin\Release`.
+Windows **Start with Windows** (`HKCU\...\Run\StatusGuard`) points at
+`%LOCALAPPDATA%\StatusGuard\current` - not `bin\Release`.
 After local fixes, deploy into that folder:
 
 ```powershell
@@ -58,11 +58,11 @@ subject when the merge should cut a GitHub Release.
 - Never commit `.env`, auth cookies, passwords, or live `output_log_*.txt` files.
 - Use sanitized fixtures in tests (redact `usr_` / `grp_` ids).
 - App data (cookies, settings, `guard.log`, `activity.jsonl`) lives under
-  `%LOCALAPPDATA%\introVRt Lounge\VRChat Status Guard\` - keep it off git.
+  `%LOCALAPPDATA%\introVRt Lounge\Status Guard\` - keep it off git.
 
 ## PR checklist
 
 - [ ] Linked issue (`Fixes #N`) unless exception applies
-- [ ] `dotnet test tests/VrchatStatusGuard.Core.Tests/VrchatStatusGuard.Core.Tests.csproj` green
+- [ ] `dotnet test tests/StatusGuard.Core.Tests/StatusGuard.Core.Tests.csproj` green
 - [ ] No secrets in the diff
 - [ ] Docs/TODO updated if behaviour or milestone status changed

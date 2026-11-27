@@ -49,4 +49,4 @@ When disabled, the client drops the queue and does not POST.
 
 ## Schema
 
-`schema: 1` today. See `VrchatPrivacy.Core.Telemetry.TelemetryClient`.
+`schema: 1` today. See `StatusGuard.Core.Telemetry.TelemetryClient`.

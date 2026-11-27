@@ -103,7 +103,7 @@ return 0;
     if (-not $exe) { throw "LogoAlpha.exe not built" }
 
     $pairs = @(
-        @{ In = Join-Path $RepoRoot "src\VrchatPrivacy.App\Assets\status-guard-logo.jpg"; Out = Join-Path $RepoRoot "src\VrchatPrivacy.App\Assets\status-guard-logo.png" },
+        @{ In = Join-Path $RepoRoot "src\StatusGuard.App\Assets\status-guard-logo.jpg"; Out = Join-Path $RepoRoot "src\StatusGuard.App\Assets\status-guard-logo.png" },
         @{ In = Join-Path $RepoRoot "docs\assets\status-guard-logo.jpg"; Out = Join-Path $RepoRoot "docs\assets\status-guard-logo.png" }
     )
     foreach ($pair in $pairs) {

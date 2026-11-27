@@ -1,4 +1,4 @@
-# VRChat Status Guard - build brief
+# Status Guard - build brief
 
 ## Purpose
 

@@ -1,4 +1,4 @@
-# VRChat Status Guard
+# Status Guard
 
 [![CI](https://github.com/introVRt-Lounge/vrchat-status-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/introVRt-Lounge/vrchat-status-guard/actions/workflows/ci.yml)
 
@@ -53,16 +53,16 @@ Maintainer local install (matches Startup Run key):
 ## Dev
 
 ```powershell
-dotnet restore src/VrchatPrivacy.sln
-dotnet test tests/VrchatStatusGuard.Core.Tests/VrchatStatusGuard.Core.Tests.csproj
-dotnet run --project src/VrchatPrivacy.App/VrchatPrivacy.App.csproj
+dotnet restore src/StatusGuard.sln
+dotnet test tests/StatusGuard.Core.Tests/StatusGuard.Core.Tests.csproj
+dotnet run --project src/StatusGuard.App/StatusGuard.App.csproj
 ```
 
 | Project | Role |
 |---------|------|
-| `VrchatPrivacy.Core` | Log parse, rules, auth, protection decisions |
-| `VrchatPrivacy.App` | WinForms tray (Windows) |
-| `VrchatStatusGuard.Core.Tests` | Unit tests |
+| `StatusGuard.Core` | Log parse, rules, auth, protection decisions |
+| `StatusGuard.App` | WinForms tray (Windows) |
+| `StatusGuard.Core.Tests` | Unit tests |
 
 VRChat logs: `%UserProfile%\AppData\LocalLow\VRChat\VRChat\output_log_*.txt`.
 
