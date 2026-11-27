@@ -27,7 +27,7 @@ concurrency:
 
 env:
   VELOPACK_VERSION: "1.2.161"
-  PACK_ID: "VRChatStatusGuard"
+  PACK_ID: "StatusGuard"
 
 jobs:
   windows-release:
@@ -207,7 +207,7 @@ jobs:
             $lines.Add("- Initial packaged release.")
           }
           $lines.Add("")
-          $lines.Add("Install: download **VRChatStatusGuard-win-Setup.exe** from the assets below.")
+          $lines.Add("Install: download **StatusGuard-win-Setup.exe** from the assets below.")
           ($lines -join "`n") + "`n" | Set-Content -Path $path -Encoding utf8
           Get-Content $path | Write-Host
           "path=$path" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
@@ -227,7 +227,7 @@ jobs:
         if: steps.ver.outputs.skip != 'true'
         uses: actions/upload-artifact@v7
         with:
-          name: VrchatStatusGuard-Setup
+          name: StatusGuard-Setup
           path: artifacts/velopack/*
           if-no-files-found: error
 

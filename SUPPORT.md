@@ -10,7 +10,7 @@ and tag it with `question`. Please include:
 - Whether you are logged in (no passwords, please)
 - What you expected vs what happened
 - Relevant lines from
-  `%LOCALAPPDATA%\introVRt Lounge\VRChat Status Guard\guard.log`
+  `%LOCALAPPDATA%\introVRt Lounge\Status Guard\guard.log`
   (redact usernames if you want)
 
 ## I found a bug
@@ -34,8 +34,8 @@ usually out of scope.
 - Use tray → **Check for updates…** after install; do not mix side-by-side copies.
 - Self-contained build: you should not need a separate .NET runtime.
 - Auth cookies / settings / logs live under
-  `%LOCALAPPDATA%\introVRt Lounge\VRChat Status Guard\`
-  (migrated from the older Privacy Guard folder when present).
+  `%LOCALAPPDATA%\introVRt Lounge\Status Guard\`
+  (migrated from older AppData folder names when present).
 - Local maintainers: after building from source, run
   `.\scripts\deploy-local-install.ps1` so Startup matches the tree you just built
   (see [CONTRIBUTING.md](CONTRIBUTING.md)).

@@ -28,7 +28,7 @@ jobs:
           dotnet-version: "8.0.x"
       - name: Test
         run: >
-          dotnet test tests/VrchatStatusGuard.Core.Tests/VrchatStatusGuard.Core.Tests.csproj
+          dotnet test tests/StatusGuard.Core.Tests/StatusGuard.Core.Tests.csproj
           -c Release --verbosity normal
 
   installer:
@@ -47,7 +47,7 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v7
         with:
-          name: VrchatStatusGuard-Setup
+          name: StatusGuard-Setup
           path: artifacts/velopack/*
           if-no-files-found: error
 
@@ -86,9 +86,9 @@ jobs:
         with:
           dotnet-version: "8.0.x"
       - name: Restore
-        run: dotnet restore src/VrchatPrivacy.sln
+        run: dotnet restore src/StatusGuard.sln
       - name: Vulnerable package audit
-        run: dotnet list src/VrchatPrivacy.sln package --vulnerable --include-transitive
+        run: dotnet list src/StatusGuard.sln package --vulnerable --include-transitive
 
   ci:
     needs: [test, installer, secret-scan, owasp-sast, security-audit]

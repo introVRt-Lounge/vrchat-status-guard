@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Test project renamed to `VrchatStatusGuard.Core.Tests` (#82).
+- Test project renamed to `StatusGuard.Core.Tests` (#82).
 
 ### Changed
 
@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - EOF-only log watcher; halt mutations when VRChat process is not running.
 - `scripts/deploy-local-install.ps1` for Startup-aligned local installs.
 - Private repo bootstrap under `introVRt-Lounge` (now public).
-- `VrchatPrivacy.Core` world-id and log join parsing (pattern verified on live PC logs 2026-11-20).
+- `StatusGuard.Core` world-id and log join parsing (pattern verified on live PC logs 2026-11-20).
 - Protection rules/decision engine (default orange / `ask me`; never auto blue).
 - WinForms tray, DPAPI session, protection orchestrator, hub UI, Velopack updates.
 - Default protected world `wrld_4432ea9b-729c-46e3-8eaf-846aa0a37fdd` (VRChat Home) → orange / ask me.

@@ -6,7 +6,7 @@
 param(
     [string]$Configuration = "Release",
     [string]$Version = "0.1.0",
-    [string]$PackId = "VRChatStatusGuard",
+    [string]$PackId = "StatusGuard",
     [string]$VpkVersion = "1.2.161",
     [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
     [string]$ReleaseNotesPath = "",
@@ -18,7 +18,7 @@ $ErrorActionPreference = "Stop"
 
 $publishDir = Join-Path $RepoRoot "artifacts\publish"
 $velopackOut = Join-Path $RepoRoot "artifacts\velopack"
-$appProject = Join-Path $RepoRoot "src\VrchatPrivacy.App\VrchatPrivacy.App.csproj"
+$appProject = Join-Path $RepoRoot "src\StatusGuard.App\StatusGuard.App.csproj"
 
 Write-Host "Publishing self-contained win-x64 to $publishDir"
 if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
@@ -38,7 +38,7 @@ dotnet publish $appProject `
 
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed ($LASTEXITCODE)" }
 
-$exe = Join-Path $publishDir "VrchatPrivacy.App.exe"
+$exe = Join-Path $publishDir "StatusGuard.exe"
 if (-not (Test-Path $exe)) { throw "Published exe missing: $exe" }
 
 if (-not $SkipToolInstall) {
@@ -61,7 +61,7 @@ $packArgs = @(
     "--packId", $PackId,
     "--packVersion", $Version,
     "--packDir", $publishDir,
-    "--mainExe", "VrchatPrivacy.App.exe",
+    "--mainExe", "StatusGuard.exe",
     "--packTitle", "Status Guard",
     "--runtime", "win-x64",
     "--outputDir", $velopackOut
@@ -82,4 +82,3 @@ if ($LASTEXITCODE -ne 0) { throw "vpk pack failed ($LASTEXITCODE)" }
 Get-ChildItem $velopackOut | ForEach-Object {
     Write-Host "Built $($_.FullName) ($([math]::Round($_.Length/1MB,1)) MB)"
 }
-

@@ -15,7 +15,7 @@ Fixes #<!-- issue number -->
 
 ## How to verify
 
-- [ ] `dotnet test tests/VrchatStatusGuard.Core.Tests/VrchatStatusGuard.Core.Tests.csproj`
+- [ ] `dotnet test tests/StatusGuard.Core.Tests/StatusGuard.Core.Tests.csproj`
 - [ ] Manual tray/hub check on Windows if UI changed
 - [ ] Docs/TODO updated when behaviour or milestones changed
 - [ ] No secrets, cookies, or live `output_log_*.txt` in the diff
