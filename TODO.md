@@ -60,7 +60,7 @@
 - [x] [#55](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/55) Activity log Basic vs Debug views
 - [x] [#56](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/56) Log watcher no longer replays full join history on startup
 - [x] [#57](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/57) Startup Run target = installed copy; `deploy-local-install.ps1`
-- [x] [#58](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/58) Notification / UI branding = Status Guard only (no StatusGuard.App)
+- [x] [#58](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/58) Notification / UI branding = Status Guard only
 - [x] [#59](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/59) Halt mutations when VRChat client process is not running
 - [x] [#60](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/60) Tray shows Logout… when authenticated
 - [x] [#61](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/61) Tray balloons use world/group names + status labels, not IDs
