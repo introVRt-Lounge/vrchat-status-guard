@@ -81,7 +81,7 @@
 - [x] [#85](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/85) Extreme early-adopter telemetry (opt-out, guinea-pig FUE)
 - [ ] [#86](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/86) Tone down telemetry after early-adopter phase (later)
 - [x] [#91](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/91) Remove 40-group cap in protection group picker
-- [ ] [#94](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/94) Full rename VrchatPrivacy → StatusGuard - in PR
+- [x] [#94](https://github.com/introVRt-Lounge/vrchat-status-guard/issues/94) Full rename VrchatPrivacy → StatusGuard
 - [ ] End-user path confirm: enter protected world → status becomes orange/red in-game (blocked on VRChat client sync)
 - [ ] Bounded backoff UI polish on repeated auth/network failure
 - [ ] Optional: store TOTP secret for seamless re-login (today: interactive OTP)

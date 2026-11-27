@@ -240,7 +240,7 @@ jobs:
             --token "${{ secrets.GITHUB_TOKEN }}" `
             --outputDir artifacts/velopack `
             --tag ${{ steps.ver.outputs.tag }} `
-            --releaseName "VRChat Status Guard ${{ steps.ver.outputs.tag }}" `
+            --releaseName "Status Guard ${{ steps.ver.outputs.tag }}" `
             --targetCommitish ${{ github.sha }} `
             --publish
 
